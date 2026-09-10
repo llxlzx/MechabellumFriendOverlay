@@ -58,15 +58,21 @@ namespace FriendOverlay.Core
         /// <summary>Single sentinel for "this row does not create a room", verified or not.</summary>
         public const int NoRoomMode = -1;
 
+        // GameMode: Normal=0 Competition=1 Guider=2 Survive=3 Rift=4
+        // MatchMode: VS_1_1=0 VS_2_2=1 VS_4_Scuffle=2 VS_2_2_Scuffle=3
+        // Every cell below was read off the native window on 2026-09-10; see
+        // docs/superpowers/plans/2026-09-10-invite-trace-table.md for the log lines.
         private static readonly BattleType[] _entries =
         {
-            Unverified(BattleTypeKind.Vs1v1, "1对1"),
-            Unverified(BattleTypeKind.Vs2v2, "2对2"),
-            Unverified(BattleTypeKind.Survive, "生存模式"),
-            new BattleType(BattleTypeKind.TeamMatch, "组队匹配", NoRoomMode, NoRoomMode, true, false),
-            Unverified(BattleTypeKind.Scuffle4, "4人混战"),
-            Unverified(BattleTypeKind.Rift1v1, "时空裂隙 1V1"),
-            Unverified(BattleTypeKind.Rift2v2, "时空裂隙 2V2"),
+            Room(BattleTypeKind.Vs1v1, "1对1", 0, 0),
+            Room(BattleTypeKind.Vs2v2, "2对2", 0, 1),
+            // Survive pairs with VS_2_2, not VS_1_1, which is why this table had to be captured.
+            Room(BattleTypeKind.Survive, "生存模式", 3, 1),
+            // Creates no room at all: the native button only calls TeamProxy.RequestTeamInvite.
+            new BattleType(BattleTypeKind.TeamMatch, "组队匹配", NoRoomMode, NoRoomMode, true, true),
+            Room(BattleTypeKind.Scuffle4, "4人混战", 0, 2),
+            Room(BattleTypeKind.Rift1v1, "时空裂隙 1V1", 4, 0),
+            Room(BattleTypeKind.Rift2v2, "时空裂隙 2V2", 4, 1),
         };
 
         /// <summary>Native window order, top to bottom.</summary>
@@ -83,7 +89,7 @@ namespace FriendOverlay.Core
             return null;
         }
 
-        private static BattleType Unverified(BattleTypeKind kind, string label) =>
-            new BattleType(kind, label, NoRoomMode, NoRoomMode, false, false);
+        private static BattleType Room(BattleTypeKind kind, string label, int gameMode, int matchMode) =>
+            new BattleType(kind, label, gameMode, matchMode, false, true);
     }
 }

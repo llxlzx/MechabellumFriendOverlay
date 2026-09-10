@@ -106,6 +106,42 @@ public class BattleTypeCatalogTests
             });
     }
 
+    /// <summary>
+    /// Transcribed from the 2026-09-10 21:47–21:48 capture in the trace table. These are observations of
+    /// the native window, not derivations, so this theory is the only place they appear.
+    /// </summary>
+    [Theory]
+    [InlineData(BattleTypeKind.Vs1v1, 0, 0, false)]     // Btn1v1OnClicked        Normal, VS_1_1
+    [InlineData(BattleTypeKind.Vs2v2, 0, 1, false)]     // Btn2v2OnClicked        Normal, VS_2_2
+    [InlineData(BattleTypeKind.Survive, 3, 1, false)]   // BtnSurviveOnClicked    Survive, VS_2_2
+    [InlineData(BattleTypeKind.TeamMatch, -1, -1, true)] // MatchBtnOnClicked     RequestTeamInvite, no room
+    [InlineData(BattleTypeKind.Scuffle4, 0, 2, false)]  // BtnChaosFactionOnClicked Normal, VS_4_Scuffle
+    [InlineData(BattleTypeKind.Rift1v1, 4, 0, false)]   // BtnRift1v1OnClicked    Rift, VS_1_1
+    [InlineData(BattleTypeKind.Rift2v2, 4, 1, false)]   // BtnRift2v2OnClicked    Rift, VS_2_2
+    public void Catalog_ModeMappingMatchesTheCapturedTrace(
+        BattleTypeKind kind,
+        int gameMode,
+        int matchMode,
+        bool isTeamMatch)
+    {
+        var entry = BattleTypeCatalog.ByKind(kind);
+
+        Assert.NotNull(entry);
+        Assert.Equal(gameMode, entry!.GameMode);
+        Assert.Equal(matchMode, entry.MatchMode);
+        Assert.Equal(isTeamMatch, entry.IsTeamMatch);
+    }
+
+    /// <summary>
+    /// The whole catalog is captured, so nothing should still be rendering as 暂未开放. A future game
+    /// version adding a button would land here first.
+    /// </summary>
+    [Fact]
+    public void Catalog_EveryEntryIsTraceVerified()
+    {
+        Assert.All(BattleTypeCatalog.Entries, e => Assert.True(e.Verified));
+    }
+
     /// <summary>Catches a mode pair copy-pasted from a neighbouring button.</summary>
     [Fact]
     public void Catalog_NoTwoVerifiedRoomEntriesShareTheSameModePair()

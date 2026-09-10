@@ -53,6 +53,13 @@ namespace FriendOverlay.Actions
             if (!Compat.Capabilities.CreateRoom)
                 return false;
 
+            // The game would take a null callback into native code; refuse before anything is claimed.
+            if (CreateResponse == null)
+            {
+                MelonLogger.Warning("[FriendOverlay] InviteFlow: create-room callback unavailable");
+                return false;
+            }
+
             var lobby = Data.GameProxies.Lobby;
             if (lobby == null)
             {
@@ -123,7 +130,10 @@ namespace FriendOverlay.Actions
             {
                 _lobby = null;
                 if (FriendActions.InviteUserJoin(userId))
+                {
+                    MelonLogger.Msg("[FriendOverlay] InviteFlow: invited " + userId + " into our room");
                     OnSent?.Invoke(userId);
+                }
             }
             else if (step == InviteStep.TimedOut)
             {

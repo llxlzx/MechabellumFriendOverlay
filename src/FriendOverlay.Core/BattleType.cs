@@ -75,8 +75,10 @@ namespace FriendOverlay.Core
             Room(BattleTypeKind.Rift2v2, "时空裂隙 2V2", 4, 1),
         };
 
+        private static readonly IList<BattleType> _readOnly = System.Array.AsReadOnly(_entries);
+
         /// <summary>Native window order, top to bottom.</summary>
-        public static IList<BattleType> Entries => _entries;
+        public static IList<BattleType> Entries => _readOnly;
 
         public static BattleType? ByKind(BattleTypeKind kind)
         {

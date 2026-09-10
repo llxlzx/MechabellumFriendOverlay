@@ -21,7 +21,7 @@
 - 叠加打开时挂全屏透明 uGUI 挡板，点击与拖动不再穿透到背后大厅
 - 拖标题栏移动、右下角拖动缩放，位置尺寸写入偏好（关闭面板即落盘）
 - 分页拉全关注列表，同步状态条带脉冲指示
-- 逐功能能力探测（`invite / followers / portrait`）：缺哪个接口只关哪个功能；整体仍 fail-open
+- 逐功能能力探测（`inviteUserJoin / createRoom / teamInvite / followers / portrait`）：缺哪个接口只关哪个功能；整体仍 fail-open
 - 失败则 fail-open：不打补丁或异常时恢复原生 UI
 
 不做：Discord 邀请、「关注我的人」置顶、服务器端置顶、动态边框预制体、黑名单 / Discord 页签、本地备注 / 分组、对局内回合比分、强行互关。
@@ -102,8 +102,9 @@ MelonPreferences 分类 `FriendOverlay`：
 16. `Ctrl+L` 全列表变首字母（含中文），再按恢复且不重新下载  
 17. 游戏内打开「显示被封禁头像」后，被屏蔽的行无需重开面板即恢复真实头像；按 `F8` 切原生，两边显示一致  
 18. 去掉 DLL：完全原生  
-19. 日志出现 `capabilities invite=True followers=True portrait=True`  
+19. 日志出现 `capabilities inviteUserJoin=True createRoom=True teamInvite=True followers=True portrait=True`  
 20. 已在房间时点 `邀请` 直接发出，5 秒内显示 `已邀请`；未进房间时点 `邀请` 弹出战斗类型选择，选一项后自动开房并在房间就绪时发出邀请，期间该行显示 `邀请中`  
+20a. 战斗类型窗七行顺序与原生一致，无「暂未开放」；选 `组队匹配` 时好友收到组队邀请且不开房；日志每次成功都有 `InviteFlow: invited <uid> into our room`，失败只应看到 `gave up waiting` 或 `CreateRoom refused`  
 21. 「关注我的人」页签：计数与原生被关注页一致，分区正确；非互关行 `回关` 后变 `⇌ 已互关`；菜单无 `置顶`，非互关行无 `取消关注`  
 21a. 正对照：确知在线的非互关关注者必须出现在 `在线` 分区。若日志 `followers states known=0/N`，说明 `RequestOnline` 不答非关注 uid，此时该页签只能全离线 + `状态未知`，需按 README「工程结构」里的 `RequestFollowerStatus` 线索另找来源，**不要**改成信任列表自带的 `State`  
 22. 置顶 / 取消置顶生效，`置顶` 分区排最前且从原分区移除；第 21 个显示 `置顶（已满 20）`；重启游戏后保留；取关后自动移出  

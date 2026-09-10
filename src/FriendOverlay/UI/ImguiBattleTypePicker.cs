@@ -13,6 +13,12 @@ namespace FriendOverlay.UI
     public static class ImguiBattleTypePicker
     {
         private static bool _open;
+
+        // 组队匹配 reports nothing back, so a call that could not even be dispatched is the only failure
+        // the mod can see. Latching it disables that one row instead of letting the player keep clicking
+        // a button that silently does nothing.
+        private static bool _teamFailed;
+
         private static ulong _userId;
         private static string _name = string.Empty;
         private static Rect _rect;
@@ -84,7 +90,9 @@ namespace FriendOverlay.UI
                 {
                     var entry = entries[i];
                     var enabled = IsOffered(entry);
-                    var label = entry.Verified ? entry.Label : entry.Label + "（暂未开放）";
+                    var label = enabled
+                        ? entry.Label
+                        : entry.Label + "（暂未开放）";
 
                     if (Btn(new Rect(pad, y, _rect.width - pad * 2f, rowH), label, Theme.Chip, enabled))
                         Pick(entry);
@@ -111,7 +119,7 @@ namespace FriendOverlay.UI
                 return false;
 
             return entry.IsTeamMatch
-                ? Compat.Capabilities.TeamInvite
+                ? Compat.Capabilities.TeamInvite && !_teamFailed
                 : Compat.Capabilities.CreateRoom;
         }
 
@@ -132,9 +140,18 @@ namespace FriendOverlay.UI
             if (entry.IsTeamMatch)
             {
                 // Fire and forget: the game reports nothing back, so the row is marked as soon as the
-                // call did not throw.
+                // call did not throw, and a call that never went out disables the row for good.
                 if (Actions.FriendActions.InviteTeam(userId))
+                {
                     ImguiFriendOverlay.NoteInviteSent(userId);
+                }
+                else
+                {
+                    _teamFailed = true;
+                    MelonLoader.MelonLogger.Warning(
+                        "[FriendOverlay] 组队匹配 unavailable, that row is disabled for this session");
+                }
+
                 return;
             }
 

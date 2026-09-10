@@ -48,10 +48,11 @@ namespace FriendOverlay
             // Optional surfaces are probed before the hooks so hook installation can consult them.
             Capabilities.Probe();
 
-            Actions.InviteFlow.OnSent = ImguiFriendOverlay.NoteInviteSent;
-
             try
             {
+                // Touching InviteFlow runs its static initializer, which converts the create-room
+                // callback delegate. That must not be able to abort init without failing open.
+                Actions.InviteFlow.OnSent = ImguiFriendOverlay.NoteInviteSent;
                 FriendPanelHooks.Apply(HarmonyInstance);
                 LoggerInstance.Msg("FriendOverlay hooks applied. Overlay default=" + OverlaySession.PreferOverlayDefault);
             }

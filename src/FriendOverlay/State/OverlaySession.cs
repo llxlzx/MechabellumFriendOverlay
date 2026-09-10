@@ -140,6 +140,9 @@ namespace FriendOverlay.State
                 return;
 
             Mode = Mode == OverlayMode.Overlay ? OverlayMode.Native : OverlayMode.Overlay;
+            // The picker is not drawn in native mode and its Esc handler is overlay-only, so leaving it
+            // open would strand an invisible modal until the session ends.
+            UI.ImguiBattleTypePicker.Close();
             ApplyModeVisibility();
             OverlayVisible = Mode == OverlayMode.Overlay;
         }
@@ -151,6 +154,11 @@ namespace FriendOverlay.State
             Degraded = true;
             OverlayVisible = false;
             Mode = OverlayMode.Native;
+
+            // Degraded stops OnUpdate before InviteFlow.Tick, so an in-flight create would never be
+            // completed nor timed out. This is the hard reset the flow's own contract talks about;
+            // ordinary session end deliberately leaves it running.
+            Actions.InviteFlow.Reset();
 
             UI.InputShield.Destroy();
             RestoreTransparency();

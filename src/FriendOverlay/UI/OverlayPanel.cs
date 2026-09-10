@@ -677,11 +677,20 @@ namespace FriendOverlay.UI
                     break;
                 case RowAction.Invite:
                     // Mirrors the native button: in a room invites straight away, otherwise the battle
-                    // type has to be chosen before a room can exist.
-                    if (BuildContext(row).InvitePath == InvitePath.Picker)
-                        ImguiBattleTypePicker.Open(row.UserId, row.Name ?? string.Empty);
-                    else if (FriendActions.Invite(row))
-                        NoteInviteSent(row.UserId);
+                    // type has to be chosen before a room can exist. Disabled is spelled out rather than
+                    // folded into the direct path, so a network call never depends on RowCard having
+                    // refused to emit the action.
+                    switch (BuildContext(row).InvitePath)
+                    {
+                        case InvitePath.Picker:
+                            ImguiBattleTypePicker.Open(row.UserId, row.Name ?? string.Empty);
+                            break;
+                        case InvitePath.Direct:
+                            if (FriendActions.Invite(row))
+                                NoteInviteSent(row.UserId);
+                            break;
+                    }
+
                     break;
                 case RowAction.ToggleMenu:
                     _menuRowId = _menuRowId == row.UserId ? 0 : row.UserId;

@@ -59,6 +59,16 @@ namespace FriendOverlay
                 LoggerInstance.Error("Harmony patch failed; fail-open. " + ex);
                 return;
             }
+
+            // Probe only, and isolated: a drifted signature here must not disable the whole mod.
+            try
+            {
+                InviteTrace.Apply(HarmonyInstance);
+            }
+            catch (System.Exception ex)
+            {
+                LoggerInstance.Warning("InviteTrace skipped: " + ex.Message);
+            }
         }
 
         public override void OnUpdate()

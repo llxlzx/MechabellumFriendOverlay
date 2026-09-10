@@ -101,6 +101,31 @@ namespace FriendOverlay.Data
                 var avatar = portraitInfo != null ? portraitInfo.GetAvatarURL() : game.GetAvatarURL();
                 var outline = portraitInfo != null ? portraitInfo.GetAvatarOutLineURL() : game.GetAvatarOutLineURL();
 
+                // GetAvatarURL returns a bare sprite key (Avtr_…), not an http URL. PropConfig.icon is
+                // sometimes the same key and sometimes a longer path the sprite tables know. Only swap
+                // when we already decided this row is an official key — never invent an avatar key for
+                // a photo row (empty GetAvatarURL + non-empty FaceUrl).
+                var icon = string.Empty;
+                try
+                {
+                    var data = portraitInfo?.GetAvatarData();
+                    icon = data != null ? (data.GetIcon() ?? data.icon ?? string.Empty) : string.Empty;
+                }
+                catch
+                {
+                    icon = string.Empty;
+                }
+
+                if (!string.IsNullOrEmpty(avatar) &&
+                    !avatar.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !avatar.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrEmpty(icon) &&
+                    !icon.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !icon.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    avatar = icon;
+                }
+
                 var plan = PortraitPlanner.Decide(blocked, portrait, avatar, outline);
 
                 if (_samplesLogged < 3)
@@ -109,6 +134,7 @@ namespace FriendOverlay.Data
                     MelonLogger.Msg(
                         "[FriendOverlay] portrait sample uid=" + uid +
                         " faceId=" + faceId + " faceBorder=" + faceBorder + " blocked=" + blocked +
+                        " icon=" + icon +
                         " -> " + plan.Kind + " image=" + plan.ImageRef + " frame=" + plan.FrameRef);
                 }
 

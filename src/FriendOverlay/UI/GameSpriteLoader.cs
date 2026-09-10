@@ -4,42 +4,209 @@ using Il2CppGameRiver.Client;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace FriendOverlay.UI
 {
     /// <summary>
-    /// Asks the game to load a sprite the way the game itself does. Official avatars and frames are not
-    /// all present in the local sprite tables and their references are not URLs either, so the only
-    /// reliable route is <c>SpriteManager.LoadSprite</c>, which owns the game's own downloader and cache.
-    /// It insists on a <c>GRImage</c> to hang the request on, hence the hidden one-pixel host below; we
-    /// only ever read the sprite out of the success callback.
+    /// Resolves official avatar / frame keys (<c>Avtr_*</c>, <c>Af_*</c>) through the game's own
+    /// prefab registry. These keys are not sprite-table names and not URLs:
+    /// <c>SpriteManager.LoadSprite</c> throws <see cref="UriFormatException"/> on them (0.3.7), and
+    /// <c>ResourceDataDownloader.DownloadImage</c> only CDN-prefixes them into a 404.
+    /// <see cref="GRAvatarManager.getAvatar"/> / <c>getOutLine</c> are the keyed lookup the native
+    /// portrait path uses — not a borrow from a FriendCellNode by list position.
     /// </summary>
     public static class GameSpriteLoader
     {
         private static readonly HashSet<string> _pending = new HashSet<string>(StringComparer.Ordinal);
-
-        /// <summary>
-        /// IL2CPP holds only the native side of a converted delegate, so the managed ones have to be
-        /// rooted here or the GC can collect a callback that has not fired yet.
-        /// </summary>
         private static readonly List<object> _alive = new List<object>();
 
         private static GameObject? _host;
         private static GRImage? _image;
-        private static bool _failed;
+        private static bool _hostFailed;
+        private static bool _loggedNoManager;
+        private static bool _loggedLoadSpriteFail;
+        private static bool _loggedExtractFail;
+        private static int _hitLogs;
 
         /// <summary>
-        /// Starts a load and returns true when one is now in flight (or already was). False means this
-        /// route is unavailable and the caller should fall back.
+        /// True when a load is in flight or was started. False means the registry is not ready yet —
+        /// the caller must retry, not Fail the entry.
         /// </summary>
-        public static bool TryLoad(string imageRef, SpriteManager sm, Action<Sprite?> done)
+        public static bool TryLoad(string imageRef, SpriteManager? sm, Action<Sprite?> done)
         {
-            if (_failed || string.IsNullOrEmpty(imageRef))
+            if (string.IsNullOrEmpty(imageRef))
                 return false;
 
             if (_pending.Contains(imageRef))
                 return true;
 
+            if (IsHttp(imageRef))
+            {
+                if (sm == null)
+                    return false;
+
+                return TryLoadSprite(imageRef, sm, done);
+            }
+
+            var mgr = TryGetManager();
+            if (mgr == null)
+                return false;
+
+            try
+            {
+                var prefab = ResolvePrefab(mgr, imageRef);
+                if (prefab == null)
+                {
+                    done(null);
+                    return true;
+                }
+
+                var sprite = ExtractSprite(prefab);
+                if (sprite == null && !_loggedExtractFail)
+                {
+                    _loggedExtractFail = true;
+                    MelonLogger.Warning(
+                        "[FriendOverlay] avatar prefab has no usable sprite: " + imageRef +
+                        " type=" + prefab.name);
+                }
+
+                if (sprite != null && _hitLogs < 6)
+                {
+                    _hitLogs++;
+                    MelonLogger.Msg("[FriendOverlay] game avatar prefab: " + imageRef);
+                }
+
+                done(sprite);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning("[FriendOverlay] GRAvatarManager lookup failed: " + ex.Message);
+                done(null);
+                return true;
+            }
+        }
+
+        public static void Reset()
+        {
+            _pending.Clear();
+            _alive.Clear();
+            _loggedNoManager = false;
+            _loggedLoadSpriteFail = false;
+            _loggedExtractFail = false;
+            _hitLogs = 0;
+
+            try
+            {
+                if (_host != null)
+                    UnityEngine.Object.Destroy(_host);
+            }
+            catch
+            {
+                // scene already tearing down
+            }
+
+            _host = null;
+            _image = null;
+            _hostFailed = false;
+        }
+
+        private static GRAvatarManager? TryGetManager()
+        {
+            try
+            {
+                var mgr = GRAvatarManager.Instance;
+                if (mgr != null)
+                    return mgr;
+            }
+            catch
+            {
+                // binding / not awake
+            }
+
+            if (!_loggedNoManager)
+            {
+                _loggedNoManager = true;
+                MelonLogger.Warning("[FriendOverlay] GRAvatarManager not ready yet");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Avatars and outlines live in separate dictionaries. Try the obvious one first, then the
+        /// other, then a GIF's first frame — some keys only exist in one of the three.
+        /// </summary>
+        private static GameObject? ResolvePrefab(GRAvatarManager mgr, string imageRef)
+        {
+            GameObject? go = null;
+
+            var preferOutline = imageRef.StartsWith("Af_", StringComparison.OrdinalIgnoreCase) ||
+                                imageRef.StartsWith("AF_", StringComparison.Ordinal);
+
+            try
+            {
+                go = preferOutline ? mgr.getOutLine(imageRef) : mgr.getAvatar(imageRef);
+            }
+            catch
+            {
+                go = null;
+            }
+
+            if (go != null)
+                return go;
+
+            try
+            {
+                go = preferOutline ? mgr.getAvatar(imageRef) : mgr.getOutLine(imageRef);
+            }
+            catch
+            {
+                go = null;
+            }
+
+            return go;
+        }
+
+        private static Sprite? ExtractSprite(GameObject prefab)
+        {
+            try
+            {
+                // Prefab assets are inactive; includeInactive must be true or every child Image is
+                // skipped and we report a miss for a registry hit.
+                var images = prefab.GetComponentsInChildren<Image>(true);
+                if (images != null)
+                {
+                    for (var i = 0; i < images.Length; i++)
+                    {
+                        var sprite = images[i]?.sprite;
+                        if (AvatarCache.IsUsableSprite(sprite))
+                            return sprite;
+                    }
+                }
+
+                var renderers = prefab.GetComponentsInChildren<SpriteRenderer>(true);
+                if (renderers != null)
+                {
+                    for (var i = 0; i < renderers.Length; i++)
+                    {
+                        var sprite = renderers[i]?.sprite;
+                        if (AvatarCache.IsUsableSprite(sprite))
+                            return sprite;
+                    }
+                }
+            }
+            catch
+            {
+                // component strip / prefab shape changed
+            }
+
+            return null;
+        }
+
+        private static bool TryLoadSprite(string imageRef, SpriteManager sm, Action<Sprite?> done)
+        {
             var image = EnsureImage();
             if (image == null)
                 return false;
@@ -60,10 +227,10 @@ namespace FriendOverlay.UI
                     done(null);
                 };
 
-                var ok = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<Sprite>>(onOk);
-                var fail = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onFail);
                 _alive.Add(onOk);
                 _alive.Add(onFail);
+                var ok = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<Sprite>>(onOk);
+                var fail = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onFail);
 
                 sm.LoadSprite(image, imageRef, ok, fail);
                 return true;
@@ -71,43 +238,31 @@ namespace FriendOverlay.UI
             catch (Exception ex)
             {
                 _pending.Remove(imageRef);
-                _failed = true;
-                MelonLogger.Warning("[FriendOverlay] game sprite load unavailable: " + ex.Message);
+                if (!_loggedLoadSpriteFail)
+                {
+                    _loggedLoadSpriteFail = true;
+                    MelonLogger.Warning("[FriendOverlay] SpriteManager.LoadSprite unavailable: " + ex.Message);
+                }
+
                 return false;
             }
         }
 
-        public static void Reset()
-        {
-            _pending.Clear();
-            _alive.Clear();
-
-            try
-            {
-                if (_host != null)
-                    UnityEngine.Object.Destroy(_host);
-            }
-            catch
-            {
-                // scene already tearing down
-            }
-
-            _host = null;
-            _image = null;
-            _failed = false;
-        }
+        private static bool IsHttp(string value) =>
+            value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
         private static GRImage? EnsureImage()
         {
             if (_image != null)
                 return _image;
 
+            if (_hostFailed)
+                return null;
+
             GameObject? host = null;
             try
             {
-                // A GRImage is a uGUI Image, so it wants a Canvas ancestor. This one is pushed behind
-                // everything and the image itself is transparent and one pixel wide: it exists to be a
-                // request handle, not to be seen.
                 host = new GameObject("FriendOverlaySpriteLoader");
                 UnityEngine.Object.DontDestroyOnLoad(host);
 
@@ -129,7 +284,7 @@ namespace FriendOverlay.UI
             }
             catch (Exception ex)
             {
-                _failed = true;
+                _hostFailed = true;
                 MelonLogger.Warning("[FriendOverlay] game sprite host unavailable: " + ex.Message);
 
                 try

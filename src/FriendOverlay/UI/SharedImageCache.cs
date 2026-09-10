@@ -75,7 +75,7 @@ namespace FriendOverlay.UI
                     entry.Pending = false;
                     if (sprite == null)
                     {
-                        Fail(entry, imageRef!, "game sprite load failed");
+                        Fail(entry, imageRef!, "game avatar load failed");
                         return;
                     }
 
@@ -85,9 +85,10 @@ namespace FriendOverlay.UI
                     return true;
                 }
 
+                // Registry not awake yet — same as Lookup.Retry. Failing here would turn the first
+                // open of the panel into permanent letters for every official avatar.
                 entry.Pending = false;
-                Fail(entry, imageRef!, "not in the sprite table, and not a url: " + url);
-                return false;
+                return true;
             }
 
             if (!AvatarLoader.WillAttempt(url))

@@ -7,7 +7,7 @@
     <AssemblyName>FriendOverlay</AssemblyName>
     <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
          de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
-    <Version>0.3.7</Version>
+    <Version>0.3.8</Version>
     <RootNamespace>FriendOverlay</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -71,6 +71,10 @@
     </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>$(Il2CppAssemblies)\Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppSystem">
+      <HintPath>$(Il2CppAssemblies)\Il2CppSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">

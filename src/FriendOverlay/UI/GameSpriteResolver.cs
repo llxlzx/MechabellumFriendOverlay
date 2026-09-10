@@ -240,26 +240,28 @@ namespace FriendOverlay.UI
         }
 
         /// <summary>
-        /// Hands the reference to the game's own sprite loader, which reaches assets the local tables do
-        /// not have yet. Returns true when a load is in flight; the callback gets null when the game
-        /// gave up or handed back its placeholder.
+        /// Hands the reference to the game's keyed avatar registry (or LoadSprite for real URLs).
+        /// Returns false when the registry is not ready yet — the caller must retry, not Fail.
         /// </summary>
         public static bool TryStartGameLoad(string imageRef, Action<Sprite?> done)
         {
             var sm = GetSpriteManager();
-            if (sm == null)
+            if (IsDownloadable(imageRef) && sm == null)
                 return false;
 
             var defaultId = 0;
-            try
+            if (sm != null)
             {
-                var fallback = sm.defaultSprite;
-                if (fallback != null)
-                    defaultId = fallback.GetInstanceID();
-            }
-            catch
-            {
-                // without the placeholder id we can only trust IsUsableSprite
+                try
+                {
+                    var fallback = sm.defaultSprite;
+                    if (fallback != null)
+                        defaultId = fallback.GetInstanceID();
+                }
+                catch
+                {
+                    // without the placeholder id we can only trust IsUsableSprite
+                }
             }
 
             var placeholderId = defaultId;
@@ -271,14 +273,13 @@ namespace FriendOverlay.UI
 
                 if (usable)
                 {
-                    // A reference the game itself could fetch belongs in the local tables from now on.
                     _localMiss.Remove(imageRef);
                     _misses.Remove(imageRef);
-                    LogHit("game sprite loaded: " + imageRef);
+                    LogHit("game avatar loaded: " + imageRef);
                 }
                 else
                 {
-                    LogMiss("game sprite load failed: " + imageRef);
+                    LogMiss("game avatar load failed: " + imageRef);
                 }
 
                 done(usable ? sprite : null);

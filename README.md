@@ -112,7 +112,7 @@ MelonPreferences 分类 `FriendOverlay`：
 24. `Ctrl+L` 同时隐藏头像与边框  
 25. 在线状态轮询不刷爆连接：200+ 关注量下日志只有 `online poll ids=<N> chunk=32` 这类少量行，游戏日志不再出现 `tcp session write buffer too long`；按 `F8` 切原生或关闭叠加后，轮询立即停止；面板挂着不动一小时，游戏不卡死  
 26. 挡板只盖面板：叠加打开着也能直接点大厅的「开始游戏」等按钮；点面板内部不穿到背后大厅；确认框 / 战斗类型窗打开时恢复全屏拦截，点窗外不会误触大厅；拖动与缩放全程不误触  
-27. 官方头像走游戏自己的加载链：日志出现 `local sprite via <route>: <ref>` 或 `game sprite loaded: <ref>`，且不再出现 `shared image failed (download failed): Avtr_...`。若看到 `local sprite miss: <ref> tried=<候选名列表>` 紧跟 `game sprite load failed`，说明两条链都不认这个名字，下一步按 `tried=` 里的候选名另找入口；出现 `game sprite host unavailable` / `game sprite load unavailable` 说明隐藏 `GRImage` 这条路在本版本行不通。本版本元数据里没有 `PlayerPortraitSpriteSelector`（只有 CommanderSkill / Technology / Mech / Officer 四个），所以 `portrait:` 这条大概率不会命中，真正指望的是 `game sprite loaded`。任何情况下都**不要**改回把裸精灵名当 URL 下载；也**不要**未经确认就恢复「从原生 cell 借 sprite」那一层（已按决策退役）  
+27. 官方头像走游戏 `GRAvatarManager` 预制体表：日志出现 `game avatar prefab: <ref>` 或 `game avatar loaded: <ref>`，且不再出现 `UriFormatException` / `shared image failed (download failed): Avtr_...`。若看到 `game avatar load failed` 或 `avatar prefab has no usable sprite`，说明键在表里但预制体上没有可画的 Image/SpriteRenderer。0.3.7 误用 `LoadSprite`，0.3.8 曾试 `DownloadImage`（会 CDN 拼出 404）；正确路径是按键名 `getAvatar`/`getOutLine`（不是按列表位置借原生 cell）。任何情况下都**不要**改回把裸精灵名当 URL 丢给 `AvatarLoader`；也**不要**未经确认就恢复「按座位借用」那一层  
 28. 状态一眼可辨：五种状态颜色互不相同（PvE 不再与强调色同色），状态文字带同色底胶囊，菱形足够大；鼠标悬停在某行时该行状态菱形仍然可见  
 
 ## 工程结构

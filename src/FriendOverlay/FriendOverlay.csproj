@@ -24,6 +24,8 @@
     <Compile Include="..\FriendOverlay.Core\FriendStatusKind.cs" Link="Core\FriendStatusKind.cs" />
     <Compile Include="..\FriendOverlay.Core\FriendSection.cs" Link="Core\FriendSection.cs" />
     <Compile Include="..\FriendOverlay.Core\InviteRules.cs" Link="Core\InviteRules.cs" />
+    <Compile Include="..\FriendOverlay.Core\PendingInviteState.cs" Link="Core\PendingInviteState.cs" />
+    <Compile Include="..\FriendOverlay.Core\BattleType.cs" Link="Core\BattleType.cs" />
     <Compile Include="..\FriendOverlay.Core\PinnedIds.cs" Link="Core\PinnedIds.cs" />
     <Compile Include="..\FriendOverlay.Core\PortraitPlan.cs" Link="Core\PortraitPlan.cs" />
     <Compile Include="..\FriendOverlay.Core\Presence.cs" Link="Core\Presence.cs" />

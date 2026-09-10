@@ -71,6 +71,13 @@ namespace FriendOverlay.UI
 
         public static FriendListTab Tab { get; private set; } = FriendListTab.Following;
 
+        /// <summary>
+        /// Called when an invite actually left the client, including one the create-room flow sent long
+        /// after the row was clicked. Marking at send rather than at click keeps 已邀请 truthful: a flow
+        /// that timed out sent nothing.
+        /// </summary>
+        public static void NoteInviteSent(ulong userId) => _inviteCooldown.Mark(userId, Time.unscaledTime);
+
         private static IReadOnlyList<FriendRowVm> Source =>
             Tab == FriendListTab.Followers ? FansListService.Snapshot : FriendListService.Snapshot;
 
@@ -433,7 +440,7 @@ namespace FriendOverlay.UI
 
             // One proxy read per frame: the room can be created or left while the panel is open, but
             // the invite gate must not cost a lookup per row.
-            _inRoom = Compat.Capabilities.Invite && GameProxies.IsInRoom();
+            _inRoom = Compat.Capabilities.InviteUserJoin && GameProxies.IsInRoom();
 
             _view = FriendQueryPipeline.Apply(src, _search.Text, _filter, _sort);
             BuildItems(_view);
@@ -593,11 +600,11 @@ namespace FriendOverlay.UI
         {
             Tab = Tab,
             InvitePath = InviteRules.Resolve(
-                capability: Compat.Capabilities.Invite && GameProxies.Lobby != null,
+                capability: Compat.Capabilities.InviteUserJoin && GameProxies.Lobby != null,
                 canCreateRoom: false,
                 inRoom: _inRoom,
                 online: row.IsOnline,
-                flowBusy: false),
+                flowBusy: Actions.InviteFlow.Busy),
             InviteRecent = _inviteCooldown.IsActive(row.UserId, Time.unscaledTime),
             IsPinned = Tab == FriendListTab.Following && PinStore.Contains(row.UserId),
             PinFull = PinStore.IsFull,

@@ -48,6 +48,8 @@ namespace FriendOverlay
             // Optional surfaces are probed before the hooks so hook installation can consult them.
             Capabilities.Probe();
 
+            Actions.InviteFlow.OnSent = ImguiFriendOverlay.NoteInviteSent;
+
             try
             {
                 FriendPanelHooks.Apply(HarmonyInstance);
@@ -80,6 +82,10 @@ namespace FriendOverlay
 
             if (OverlaySession.Degraded)
                 return;
+
+            // Ticked outside the panel guard: an invite the player already asked for must still land
+            // after they close the overlay.
+            Actions.InviteFlow.Tick();
 
             FriendListService.Tick();
             FansListService.Tick();

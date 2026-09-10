@@ -17,6 +17,10 @@ namespace FriendOverlay.Data
         private static float _nextLobbyTry;
         private static bool _loggedLobbyMiss;
 
+        private static TeamProxy? _team;
+        private static float _nextTeamTry;
+        private static bool _loggedTeamMiss;
+
         public static LobbyProxy? Lobby
         {
             get
@@ -32,6 +36,22 @@ namespace FriendOverlay.Data
                 _nextLobbyTry = Time.unscaledTime + RetrySeconds;
                 _lobby = ResolveLobby();
                 return _lobby;
+            }
+        }
+
+        public static TeamProxy? Team
+        {
+            get
+            {
+                if (_team != null)
+                    return _team;
+
+                if (Time.unscaledTime < _nextTeamTry)
+                    return null;
+
+                _nextTeamTry = Time.unscaledTime + RetrySeconds;
+                _team = ResolveTeam();
+                return _team;
             }
         }
 
@@ -57,6 +77,66 @@ namespace FriendOverlay.Data
             _lobby = null;
             _nextLobbyTry = 0f;
             _loggedLobbyMiss = false;
+            _team = null;
+            _nextTeamTry = 0f;
+            _loggedTeamMiss = false;
+        }
+
+        private static TeamProxy? ResolveTeam()
+        {
+            try
+            {
+                var facade = GameFacade.Instance;
+                if (facade == null)
+                    return MissTeam("GameFacade.Instance is null");
+
+                TeamProxy? proxy = null;
+
+                try
+                {
+                    TeamProxy? found = null;
+                    if (facade.TryRetrieveProxy<TeamProxy>(out found))
+                        proxy = found;
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg("[FriendOverlay] TryRetrieveProxy<TeamProxy> unavailable: " + ex.Message);
+                }
+
+                if (proxy == null)
+                {
+                    try
+                    {
+                        proxy = facade.RetrieveProxy<TeamProxy>(Proxy<TeamProxy>.NAME);
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Msg("[FriendOverlay] RetrieveProxy<TeamProxy>(NAME) unavailable: " + ex.Message);
+                    }
+                }
+
+                if (proxy == null)
+                    return MissTeam("TeamProxy not registered");
+
+                MelonLogger.Msg("[FriendOverlay] TeamProxy resolved");
+                _loggedTeamMiss = false;
+                return proxy;
+            }
+            catch (Exception ex)
+            {
+                return MissTeam(ex.Message);
+            }
+        }
+
+        private static TeamProxy? MissTeam(string why)
+        {
+            if (!_loggedTeamMiss)
+            {
+                _loggedTeamMiss = true;
+                MelonLogger.Warning("[FriendOverlay] TeamProxy unavailable, 组队匹配 disabled for now: " + why);
+            }
+
+            return null;
         }
 
         private static LobbyProxy? ResolveLobby()

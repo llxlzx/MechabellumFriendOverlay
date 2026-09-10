@@ -24,10 +24,14 @@ namespace FriendOverlay.Actions
         }, "Chat");
 
         /// <summary>
-        /// Mirrors the native FriendBtnListWindow invite button. Returns true only when a request
-        /// actually went out, so the caller starts the 已邀请 window for real sends only.
+        /// Invites into the room the player is already in. Deliberately not TryRequestInvite: that one
+        /// opens the game's own battle-type window when there is no room, which would fight the
+        /// overlay's picker. Returns true only when a request actually went out, so the caller starts
+        /// the 已邀请 window for real sends only.
         /// </summary>
-        public static bool Invite(FriendRowVm row)
+        public static bool Invite(FriendRowVm row) => InviteUserJoin(row.UserId);
+
+        public static bool InviteUserJoin(ulong userId)
         {
             var lobby = Data.GameProxies.Lobby;
             if (lobby == null)
@@ -38,23 +42,37 @@ namespace FriendOverlay.Actions
 
             try
             {
-                lobby.TryRequestInvite(row.UserId, row.Name ?? string.Empty, false);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning(
-                    "[FriendOverlay] TryRequestInvite failed, falling back to InviteUserJoin: " + ex.Message);
-            }
-
-            try
-            {
-                lobby.InviteUserJoin(row.UserId, false);
+                lobby.InviteUserJoin(userId, false);
                 return true;
             }
             catch (Exception ex)
             {
                 MelonLogger.Warning("[FriendOverlay] Invite: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 组队匹配. RequestTeamInvite hands off to an internal locker and reports nothing back, so a
+        /// refusal on the game's side is invisible here; only an outright exception can be detected.
+        /// </summary>
+        public static bool InviteTeam(FriendRowVm row)
+        {
+            var team = Data.GameProxies.Team;
+            if (team == null)
+            {
+                MelonLogger.Warning("[FriendOverlay] InviteTeam: TeamProxy unavailable");
+                return false;
+            }
+
+            try
+            {
+                team.RequestTeamInvite(row.UserId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning("[FriendOverlay] InviteTeam: " + ex.Message);
                 return false;
             }
         }

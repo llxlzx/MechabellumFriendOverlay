@@ -13,20 +13,45 @@ namespace FriendOverlay.Compat
     /// </summary>
     public static class Capabilities
     {
-        public static bool Invite { get; private set; }
+        /// <summary>Inviting a friend into the room the player is already in.</summary>
+        public static bool InviteUserJoin { get; private set; }
+
+        /// <summary>Creating a room of a chosen battle type, which the picker path needs.</summary>
+        public static bool CreateRoom { get; private set; }
+
+        /// <summary>The 组队匹配 row. Separate probe so losing it cannot take the other two down.</summary>
+        public static bool TeamInvite { get; private set; }
+
         public static bool Followers { get; private set; }
         public static bool Portrait { get; private set; }
 
         public static string Summary =>
-            "invite=" + Invite + " followers=" + Followers + " portrait=" + Portrait;
+            "inviteUserJoin=" + InviteUserJoin + " createRoom=" + CreateRoom + " teamInvite=" + TeamInvite +
+            " followers=" + Followers + " portrait=" + Portrait;
 
         public static void Probe()
         {
-            Invite = Has(() =>
+            InviteUserJoin = Has(() =>
                 AccessTools.Property(typeof(GameFacade), "Instance") != null &&
                 AccessTools.Property(typeof(LobbyProxy), "JoinedRoom") != null &&
-                (AccessTools.Method(typeof(LobbyProxy), "TryRequestInvite", new[] { typeof(ulong), typeof(string), typeof(bool) }) != null ||
-                 AccessTools.Method(typeof(LobbyProxy), "InviteUserJoin", new[] { typeof(ulong), typeof(bool) }) != null));
+                AccessTools.Method(typeof(LobbyProxy), "InviteUserJoin", new[] { typeof(ulong), typeof(bool) }) != null);
+
+            CreateRoom = Has(() =>
+                InviteUserJoin &&
+                AccessTools.Method(typeof(LobbyProxy), "IsHost") != null &&
+                AccessTools.Method(
+                    typeof(LobbyProxy),
+                    "CreateRoom",
+                    new[]
+                    {
+                        typeof(GameMode),
+                        typeof(MatchMode),
+                        typeof(bool),
+                        typeof(MessageCenterV2.SessionResponse),
+                    }) != null);
+
+            TeamInvite = Has(() =>
+                AccessTools.Method(typeof(TeamProxy), "RequestTeamInvite", new[] { typeof(ulong) }) != null);
 
             Followers = Has(() =>
                 AccessTools.Property(typeof(FriendProxy), "followerBaseInfoList") != null &&

@@ -141,8 +141,14 @@ namespace FriendOverlay.UI
 
                 _scroll.HandleKeys(_lastViewportH);
 
-                if (Input.GetKeyDown(KeyCode.Escape) && _menuRowId != 0)
-                    _menuRowId = 0;
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    // Closing the picker abandons the choice, not an invite already in flight.
+                    if (ImguiBattleTypePicker.IsOpen)
+                        ImguiBattleTypePicker.Close();
+                    else if (_menuRowId != 0)
+                        _menuRowId = 0;
+                }
 
                 if (Input.GetKeyDown(KeyCode.L) &&
                     (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
@@ -159,6 +165,7 @@ namespace FriendOverlay.UI
         {
             // A pending confirm still holds a closure over a row from the old session.
             ImguiConfirm.Close();
+            ImguiBattleTypePicker.Close();
             RowCard.ForceLetters = false;
             _menuRowId = 0;
             _inviteCooldown.Clear();
@@ -214,6 +221,7 @@ namespace FriendOverlay.UI
             ClampWindowToScreen();
             Gfx.GlobalAlpha = 1f;
             ImguiConfirm.Draw();
+            ImguiBattleTypePicker.Draw();
             ConsumePointerEvents();
         }
 
@@ -233,7 +241,8 @@ namespace FriendOverlay.UI
                 e.type != EventType.ScrollWheel)
                 return;
 
-            if (_dragging || _resizing || ImguiConfirm.IsOpen || _window.Contains(e.mousePosition))
+            if (_dragging || _resizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen ||
+                _window.Contains(e.mousePosition))
                 e.Use();
         }
 
@@ -414,7 +423,7 @@ namespace FriendOverlay.UI
             Gfx.Fill(r, Theme.Bg1);
             Gfx.Fill(new Rect(r.x, r.y, r.width, 1f), Theme.LineDim);
             Gfx.Text(new Rect(pad, r.y, r.width - pad * 2f - Theme.S(20f), r.height),
-                "拖动标题栏移动  ·  右下角缩放  ·  ⋯/右键 更多操作  ·  邀请需先进入房间  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
+                "拖动标题栏移动  ·  右下角缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
                 (RowCard.ForceLetters ? "  ·  Ctrl+L 字母模式（诊断）" : string.Empty),
                 Theme.TextMuted,
                 Theme.Meta);
@@ -601,11 +610,12 @@ namespace FriendOverlay.UI
             Tab = Tab,
             InvitePath = InviteRules.Resolve(
                 capability: Compat.Capabilities.InviteUserJoin && GameProxies.Lobby != null,
-                canCreateRoom: false,
+                canCreateRoom: Compat.Capabilities.CreateRoom,
                 inRoom: _inRoom,
                 online: row.IsOnline,
                 flowBusy: Actions.InviteFlow.Busy),
             InviteRecent = _inviteCooldown.IsActive(row.UserId, Time.unscaledTime),
+            InvitePending = Actions.InviteFlow.PendingUserId == row.UserId,
             IsPinned = Tab == FriendListTab.Following && PinStore.Contains(row.UserId),
             PinFull = PinStore.IsFull,
         };
@@ -666,9 +676,12 @@ namespace FriendOverlay.UI
                     FriendActions.Chat(row);
                     break;
                 case RowAction.Invite:
-                    // Only a request that actually went out starts the 已邀请 window.
-                    if (FriendActions.Invite(row))
-                        _inviteCooldown.Mark(row.UserId, Time.unscaledTime);
+                    // Mirrors the native button: in a room invites straight away, otherwise the battle
+                    // type has to be chosen before a room can exist.
+                    if (BuildContext(row).InvitePath == InvitePath.Picker)
+                        ImguiBattleTypePicker.Open(row.UserId, row.Name ?? string.Empty);
+                    else if (FriendActions.Invite(row))
+                        NoteInviteSent(row.UserId);
                     break;
                 case RowAction.ToggleMenu:
                     _menuRowId = _menuRowId == row.UserId ? 0 : row.UserId;

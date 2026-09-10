@@ -18,6 +18,9 @@ namespace FriendOverlay.UI
 
         public static void Ask(string title, string body, Action onYes)
         {
+            // Two modal windows at once would both grab input; the picker is the one that can be
+            // reopened from the row, so it yields.
+            ImguiBattleTypePicker.Close();
             _open = true;
             _title = title;
             _body = body;

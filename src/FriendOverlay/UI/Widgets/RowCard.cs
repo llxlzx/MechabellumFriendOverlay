@@ -29,6 +29,9 @@ namespace FriendOverlay.UI.Widgets
         public FriendListTab Tab;
         public InvitePath InvitePath;
         public bool InviteRecent;
+
+        /// <summary>This row's create-room invite is still waiting for the room.</summary>
+        public bool InvitePending;
         public bool IsPinned;
         public bool PinFull;
     }
@@ -243,7 +246,11 @@ namespace FriendOverlay.UI.Widgets
 
             // Disabled rather than hidden, so the player can see inviting exists and learn it needs
             // a room, instead of wondering where the button went.
-            var inviteLabel = ctx.InviteRecent ? "已邀请" : "邀请";
+            var inviteLabel = ctx.InvitePending
+                ? "邀请中"
+                : ctx.InviteRecent
+                    ? "已邀请"
+                    : "邀请";
             if (Button(new Rect(x, r.y, w, r.height), inviteLabel, Theme.Chip,
                     ctx.InvitePath != Core.InvitePath.Disabled && !ctx.InviteRecent, false))
                 action = RowAction.Invite;

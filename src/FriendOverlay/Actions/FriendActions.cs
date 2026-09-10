@@ -56,7 +56,7 @@ namespace FriendOverlay.Actions
         /// 组队匹配. RequestTeamInvite hands off to an internal locker and reports nothing back, so a
         /// refusal on the game's side is invisible here; only an outright exception can be detected.
         /// </summary>
-        public static bool InviteTeam(FriendRowVm row)
+        public static bool InviteTeam(ulong userId)
         {
             var team = Data.GameProxies.Team;
             if (team == null)
@@ -67,7 +67,7 @@ namespace FriendOverlay.Actions
 
             try
             {
-                team.RequestTeamInvite(row.UserId);
+                team.RequestTeamInvite(userId);
                 return true;
             }
             catch (Exception ex)

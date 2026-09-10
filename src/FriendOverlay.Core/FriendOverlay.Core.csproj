@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FriendOverlay.Core</RootNamespace>
+    <AssemblyName>FriendOverlay.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

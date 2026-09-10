@@ -1,0 +1,120 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FriendOverlay</AssemblyName>
+    <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
+         de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
+    <Version>0.3.5</Version>
+    <RootNamespace>FriendOverlay</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GameRoot Condition="'$(GameRoot)' == ''">D:\steam\steamapps\common\Mechabellum</GameRoot>
+    <MelonRoot>$(GameRoot)\MelonLoader</MelonRoot>
+    <Il2CppAssemblies>$(MelonRoot)\Il2CppAssemblies</Il2CppAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\FriendOverlay.Core\FriendRowVm.cs" Link="Core\FriendRowVm.cs" />
+    <Compile Include="..\FriendOverlay.Core\FriendFilter.cs" Link="Core\FriendFilter.cs" />
+    <Compile Include="..\FriendOverlay.Core\FriendSortKey.cs" Link="Core\FriendSortKey.cs" />
+    <Compile Include="..\FriendOverlay.Core\FriendQueryPipeline.cs" Link="Core\FriendQueryPipeline.cs" />
+    <Compile Include="..\FriendOverlay.Core\FriendStatusKind.cs" Link="Core\FriendStatusKind.cs" />
+    <Compile Include="..\FriendOverlay.Core\FriendSection.cs" Link="Core\FriendSection.cs" />
+    <Compile Include="..\FriendOverlay.Core\InviteRules.cs" Link="Core\InviteRules.cs" />
+    <Compile Include="..\FriendOverlay.Core\PinnedIds.cs" Link="Core\PinnedIds.cs" />
+    <Compile Include="..\FriendOverlay.Core\PortraitPlan.cs" Link="Core\PortraitPlan.cs" />
+    <Compile Include="..\FriendOverlay.Core\Presence.cs" Link="Core\Presence.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MelonLoader">
+      <HintPath>$(MelonRoot)\net6\MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(MelonRoot)\net6\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(MelonRoot)\net6\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Common">
+      <HintPath>$(MelonRoot)\net6\Il2CppInterop.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppGRClient">
+      <HintPath>$(Il2CppAssemblies)\Il2CppGRClient.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppBinNetwork">
+      <HintPath>$(Il2CppAssemblies)\Il2CppBinNetwork.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppGRCore">
+      <HintPath>$(Il2CppAssemblies)\Il2CppGRCore.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppGRUtility">
+      <HintPath>$(Il2CppAssemblies)\Il2CppGRUtility.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppGoogle.Protobuf">
+      <HintPath>$(Il2CppAssemblies)\Il2CppGoogle.Protobuf.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(Il2CppAssemblies)\Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(Il2CppAssemblies)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Opt-in: dotnet build ... -p:Deploy=true
+    The wildcard delete is the point of this target. Copying over FriendOverlay.dll alone leaves any
+    previously staged FriendOverlay.<version>.dll in place, and MelonLoader would load that instead.
+  -->
+  <Target Name="DeployToMods" AfterTargets="Build" Condition="'$(Deploy)' == 'true'">
+    <ItemGroup>
+      <StaleFriendOverlay Include="$(GameRoot)\Mods\FriendOverlay*.dll" />
+    </ItemGroup>
+    <Delete Files="@(StaleFriendOverlay)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameRoot)\Mods" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) v$(Version) to $(GameRoot)\Mods" />
+  </Target>
+</Project>

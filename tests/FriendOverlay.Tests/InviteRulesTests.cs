@@ -5,14 +5,48 @@ namespace FriendOverlay.Tests;
 
 public class InviteRulesTests
 {
+    /// <summary>
+    /// Gate held open, so this is the whole 2x2 of the part that actually decides a path. Row 4 is
+    /// load-bearing: already in a room means invite straight away and never open the picker.
+    /// </summary>
     [Theory]
-    [InlineData(true, true, true, true)]
-    [InlineData(false, true, true, false)]
-    [InlineData(true, false, true, false)]
-    [InlineData(true, true, false, false)]
-    public void CanInvite_RequiresCapabilityRoomAndOnline(bool capability, bool inRoom, bool online, bool expected)
+    [InlineData(false, false, InvitePath.Disabled)]
+    [InlineData(false, true, InvitePath.Direct)]
+    [InlineData(true, false, InvitePath.Picker)]
+    [InlineData(true, true, InvitePath.Direct)]
+    public void Resolve_WithGateOpen_PrefersDirectThenPicker(bool canCreateRoom, bool inRoom, InvitePath expected)
     {
-        Assert.Equal(expected, InviteRules.CanInvite(capability, inRoom, online));
+        Assert.Equal(
+            expected,
+            InviteRules.Resolve(capability: true, canCreateRoom, inRoom, online: true, flowBusy: false));
+    }
+
+    /// <summary>
+    /// Seven rows exhaust (capability, online, flowBusy) minus the one open combination, and the four
+    /// calls exhaust (canCreateRoom, inRoom): 7 x 4 + the theory above = all 32 worlds. The array
+    /// compare is deliberate, so a failure names which room state broke.
+    /// </summary>
+    [Theory]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
+    public void Resolve_WithGateClosed_IsDisabledForEveryRoomState(bool capability, bool online, bool flowBusy)
+    {
+        var paths = new[]
+        {
+            InviteRules.Resolve(capability, canCreateRoom: false, inRoom: false, online, flowBusy),
+            InviteRules.Resolve(capability, canCreateRoom: false, inRoom: true, online, flowBusy),
+            InviteRules.Resolve(capability, canCreateRoom: true, inRoom: false, online, flowBusy),
+            InviteRules.Resolve(capability, canCreateRoom: true, inRoom: true, online, flowBusy),
+        };
+
+        Assert.Equal(
+            new[] { InvitePath.Disabled, InvitePath.Disabled, InvitePath.Disabled, InvitePath.Disabled },
+            paths);
     }
 
     [Fact]

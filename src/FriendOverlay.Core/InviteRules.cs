@@ -2,14 +2,39 @@ using System.Collections.Generic;
 
 namespace FriendOverlay.Core
 {
+    /// <summary>
+    /// What clicking 邀请 on a row should do. Disabled is 0 so a default-initialised RowContext fails
+    /// closed rather than offering an invite the game cannot honour.
+    /// </summary>
+    public enum InvitePath
+    {
+        Disabled = 0,
+        Direct = 1,
+        Picker = 2,
+    }
+
     public static class InviteRules
     {
         /// <summary>
-        /// Invite is offered only when the game exposes it, the local player sits in a room and the
-        /// friend is online. Callers render a disabled button otherwise, never hide it.
+        /// Mirrors the native button: already in a room invites directly, otherwise the battle-type
+        /// picker creates one first. Callers render a disabled button rather than hiding it.
+        /// <para>
+        /// <paramref name="capability"/> means "inviting is possible right now", so the call site folds
+        /// the live lobby lookup into it; a dead lobby needs no separate flag because it already forces
+        /// both room flags false.
+        /// </para>
         /// </summary>
-        public static bool CanInvite(bool capability, bool inRoom, bool online) =>
-            capability && inRoom && online;
+        public static InvitePath Resolve(bool capability, bool canCreateRoom, bool inRoom, bool online, bool flowBusy)
+        {
+            if (!capability || !online || flowBusy)
+                return InvitePath.Disabled;
+
+            // Order matters: a player already in a room must not be offered a second one.
+            if (inRoom)
+                return InvitePath.Direct;
+
+            return canCreateRoom ? InvitePath.Picker : InvitePath.Disabled;
+        }
     }
 
     /// <summary>

@@ -27,7 +27,7 @@ namespace FriendOverlay.UI.Widgets
     public struct RowContext
     {
         public FriendListTab Tab;
-        public bool CanInvite;
+        public InvitePath InvitePath;
         public bool InviteRecent;
         public bool IsPinned;
         public bool PinFull;
@@ -244,7 +244,8 @@ namespace FriendOverlay.UI.Widgets
             // Disabled rather than hidden, so the player can see inviting exists and learn it needs
             // a room, instead of wondering where the button went.
             var inviteLabel = ctx.InviteRecent ? "已邀请" : "邀请";
-            if (Button(new Rect(x, r.y, w, r.height), inviteLabel, Theme.Chip, ctx.CanInvite && !ctx.InviteRecent, false))
+            if (Button(new Rect(x, r.y, w, r.height), inviteLabel, Theme.Chip,
+                    ctx.InvitePath != Core.InvitePath.Disabled && !ctx.InviteRecent, false))
                 action = RowAction.Invite;
             x += w + gap;
 

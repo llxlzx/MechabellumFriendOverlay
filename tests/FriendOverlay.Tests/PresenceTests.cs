@@ -66,7 +66,14 @@ namespace FriendOverlay.Tests
         {
             var p = Presence.Resolve(null, null, Offline);
 
-            Assert.False(InviteRules.CanInvite(capability: true, inRoom: true, online: p.Known && p.State != Offline));
+            Assert.Equal(
+                InvitePath.Disabled,
+                InviteRules.Resolve(
+                    capability: true,
+                    canCreateRoom: true,
+                    inRoom: true,
+                    online: p.Known && p.State != Offline,
+                    flowBusy: false));
         }
     }
 }

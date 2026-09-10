@@ -592,7 +592,12 @@ namespace FriendOverlay.UI
         private static RowContext BuildContext(FriendRowVm row) => new RowContext
         {
             Tab = Tab,
-            CanInvite = InviteRules.CanInvite(Compat.Capabilities.Invite, _inRoom, row.IsOnline),
+            InvitePath = InviteRules.Resolve(
+                capability: Compat.Capabilities.Invite && GameProxies.Lobby != null,
+                canCreateRoom: false,
+                inRoom: _inRoom,
+                online: row.IsOnline,
+                flowBusy: false),
             InviteRecent = _inviteCooldown.IsActive(row.UserId, Time.unscaledTime),
             IsPinned = Tab == FriendListTab.Following && PinStore.Contains(row.UserId),
             PinFull = PinStore.IsFull,

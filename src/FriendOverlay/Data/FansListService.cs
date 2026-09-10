@@ -21,6 +21,11 @@ namespace FriendOverlay.Data
         private static readonly List<FriendRowVm> _snapshot = new List<FriendRowVm>();
         private static readonly List<FriendBaseInfo> _captured = new List<FriendBaseInfo>();
 
+        /// <summary>Same bounded rotation the friend list uses; see OnlinePoll.</summary>
+        private static readonly OnlinePoll _onlinePoll = new OnlinePoll(OnlinePoll.DefaultChunkSize);
+
+        private static readonly List<ulong> _pollIds = new List<ulong>();
+
         private static bool _opened;
         private static bool _requested;
         private static bool _loggedCoverage;
@@ -47,6 +52,7 @@ namespace FriendOverlay.Data
             _requested = false;
             _nextSnapshotAt = 0f;
             _nextOnlineAt = 0f;
+            _onlinePoll.Reset();
 
             // A mid-session panel swap reaches here without a close, and the _captured fallback
             // would otherwise resurrect followers fetched through the previous proxy.
@@ -68,6 +74,7 @@ namespace FriendOverlay.Data
             _nextSnapshotAt = 0f;
             _nextOnlineAt = 0f;
             _loggedCoverage = false;
+            _onlinePoll.Reset();
         }
 
         public static void Tick()
@@ -89,7 +96,7 @@ namespace FriendOverlay.Data
                     _nextSnapshotAt = Time.unscaledTime + 0.75f;
                 }
 
-                if (Time.unscaledTime >= _nextOnlineAt)
+                if (OverlaySession.OverlayVisible && Time.unscaledTime >= _nextOnlineAt)
                 {
                     RequestOnlineBatch();
                     _nextOnlineAt = Time.unscaledTime + 2.5f;
@@ -258,9 +265,18 @@ namespace FriendOverlay.Data
 
             try
             {
-                var ids = new Il2CppListUlong();
+                _pollIds.Clear();
                 foreach (var row in _snapshot)
-                    ids.Add(row.UserId);
+                    _pollIds.Add(row.UserId);
+
+                var chunk = _onlinePoll.Next(_pollIds);
+                if (chunk.Count == 0)
+                    return;
+
+                var ids = new Il2CppListUlong();
+                for (var i = 0; i < chunk.Count; i++)
+                    ids.Add(chunk[i]);
+
                 proxy.RequestOnline(ids);
             }
             catch (Exception ex)

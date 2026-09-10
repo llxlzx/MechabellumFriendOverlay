@@ -110,10 +110,11 @@ MelonPreferences 分类 `FriendOverlay`：
 22. 置顶 / 取消置顶生效，`置顶` 分区排最前且从原分区移除；第 21 个显示 `置顶（已满 20）`；重启游戏后保留；取关后自动移出  
 23. 选了官方头像的玩家显示官方头像，选了照片的显示照片，与 `F8` 原生一致；有边框的玩家显示边框。日志 `portrait parity compared=N agree=N` 必须 `agree == compared` **且**带 `conclusive`（即本次至少各比对到 1 个官方头像行与 1 个照片行）。出现 `INCONCLUSIVE` 或 `gave up` 时本项记为未验证，不得当作通过；出现 `MISMATCH` 说明「非空 avatar URL ⟺ 玩家选了官方头像」这一推断不成立，需先补一个失败测试再改 `PortraitPlanner.Decide`，且不得改回「官方优先于照片」  
 24. `Ctrl+L` 同时隐藏头像与边框  
+25. 在线状态轮询不刷爆连接：200+ 关注量下日志只有 `online poll ids=<N> chunk=32` 这类少量行，游戏日志不再出现 `tcp session write buffer too long`；按 `F8` 切原生或关闭叠加后，轮询立即停止；面板挂着不动一小时，游戏不卡死  
 
 ## 工程结构
 
-- `src/FriendOverlay.Core` — 纯查询管线与分区逻辑、置顶集合、邀请规则、在线状态可信度、头像来源决策（均可单测）
+- `src/FriendOverlay.Core` — 纯查询管线与分区逻辑、置顶集合、邀请规则、在线状态可信度与轮询分片、头像来源决策（均可单测）
 - `src/FriendOverlay` — MelonMod / Harmony / IMGUI
   - `UI/Theme.cs`、`UI/Gfx.cs`、`UI/Anim.cs` — 调色板 / 绘制原语 / 动效
   - `Compat/Capabilities.cs` — 逐功能能力探测

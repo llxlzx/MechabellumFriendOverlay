@@ -30,6 +30,14 @@ namespace FriendOverlay.Data
         /// <summary>Hard ceiling on the page scan so a bogus total cannot spin the request loop.</summary>
         private const int MaxPageBound = 512;
 
+        /// <summary>
+        /// Presence is polled in rotating chunks rather than all at once. Asking about the whole list
+        /// every tick is what hung the game on 2026-09-10; see OnlinePoll for the numbers.
+        /// </summary>
+        private static readonly OnlinePoll _onlinePoll = new OnlinePoll(OnlinePoll.DefaultChunkSize);
+
+        private static readonly List<ulong> _pollIds = new List<ulong>();
+
         private static readonly List<FriendRowVm> _snapshot = new List<FriendRowVm>();
 
         /// <summary>
@@ -48,6 +56,7 @@ namespace FriendOverlay.Data
         private static float _pageInterval = 0.35f;
         private static int _gateBlockedHits;
         private static string _lastPagingLog = string.Empty;
+        private static string _lastPollLog = string.Empty;
 
         public static IReadOnlyList<FriendRowVm> Snapshot => _snapshot;
         public static int TotalFollowCount { get; private set; }
@@ -65,6 +74,8 @@ namespace FriendOverlay.Data
             _gateBlockedHits = 0;
             _pageInterval = 0.35f;
             _requestedPages.Clear();
+            _onlinePoll.Reset();
+            _lastPollLog = string.Empty;
             // Show cached list first, then page in background.
             RefreshSnapshot(forceOnline: false);
             TryRequestPages(force: true);
@@ -82,6 +93,8 @@ namespace FriendOverlay.Data
             _gateBlockedHits = 0;
             _requestedPages.Clear();
             _lastPagingLog = string.Empty;
+            _lastPollLog = string.Empty;
+            _onlinePoll.Reset();
         }
 
         public static void Tick()
@@ -100,7 +113,9 @@ namespace FriendOverlay.Data
                     _nextSnapshotAt = Time.unscaledTime + 0.75f;
                 }
 
-                if (Time.unscaledTime >= _nextOnlineAt)
+                // Presence traffic only while somebody is actually looking. A panel left open on the
+                // native side used to keep polling for as long as the session lasted.
+                if (OverlaySession.OverlayVisible && Time.unscaledTime >= _nextOnlineAt)
                 {
                     RequestOnlineBatch();
                     _nextOnlineAt = Time.unscaledTime + 2.5f;
@@ -377,15 +392,39 @@ namespace FriendOverlay.Data
 
             try
             {
-                var ids = new Il2CppListUlong();
+                _pollIds.Clear();
                 foreach (var row in _snapshot)
-                    ids.Add(row.UserId);
+                    _pollIds.Add(row.UserId);
+
+                var chunk = _onlinePoll.Next(_pollIds);
+                if (chunk.Count == 0)
+                    return;
+
+                var ids = new Il2CppListUlong();
+                for (var i = 0; i < chunk.Count; i++)
+                    ids.Add(chunk[i]);
+
                 proxy.RequestOnline(ids);
+                LogPoll(_pollIds.Count);
             }
             catch (Exception ex)
             {
                 MelonLogger.Warning("[FriendOverlay] RequestOnline: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Deduped on the list size, so paging logs a handful of lines and a settled list logs none —
+        /// enough to prove the request size is bounded without writing a line every 2.5s for an hour.
+        /// </summary>
+        private static void LogPoll(int total)
+        {
+            var line = "online poll ids=" + total + " chunk=" + _onlinePoll.ChunkSize;
+            if (line == _lastPollLog)
+                return;
+
+            _lastPollLog = line;
+            MelonLogger.Msg("[FriendOverlay] " + line);
         }
     }
 }

@@ -94,7 +94,7 @@ MelonPreferences 分类 `FriendOverlay`：
 8. 加入/观战/私聊不崩（服务器仍可能拒绝）  
 9. `⋯` 与行内右键都能开菜单，取关/拉黑有确认  
 10. 关闭叠加后大厅好友入口仍在，可再次打开（连测 5 次）  
-11. 叠加打开时拖动/点击/滚轮不带动背后大厅；切原生后原生可点  
+11. 叠加打开时在面板上拖动/点击/滚轮不带动背后大厅；切原生后原生可点  
 12. 头像：滚到底都没有纯填充空框，每格要么是图要么是首字母；日志摘要 `pending=0` 时 `images + letters` 等于行数，每个字母行都有带原因的 `avatar route` 行  
 13. 拖标题栏移动、右下角缩放，重开游戏后位置尺寸保留  
 14. 状态条不闪烁：同步中脉冲，完成后静止  
@@ -111,6 +111,9 @@ MelonPreferences 分类 `FriendOverlay`：
 23. 选了官方头像的玩家显示官方头像，选了照片的显示照片，与 `F8` 原生一致；有边框的玩家显示边框。日志 `portrait parity compared=N agree=N` 必须 `agree == compared` **且**带 `conclusive`（即本次至少各比对到 1 个官方头像行与 1 个照片行）。出现 `INCONCLUSIVE` 或 `gave up` 时本项记为未验证，不得当作通过；出现 `MISMATCH` 说明「非空 avatar URL ⟺ 玩家选了官方头像」这一推断不成立，需先补一个失败测试再改 `PortraitPlanner.Decide`，且不得改回「官方优先于照片」  
 24. `Ctrl+L` 同时隐藏头像与边框  
 25. 在线状态轮询不刷爆连接：200+ 关注量下日志只有 `online poll ids=<N> chunk=32` 这类少量行，游戏日志不再出现 `tcp session write buffer too long`；按 `F8` 切原生或关闭叠加后，轮询立即停止；面板挂着不动一小时，游戏不卡死  
+26. 挡板只盖面板：叠加打开着也能直接点大厅的「开始游戏」等按钮；点面板内部不穿到背后大厅；确认框 / 战斗类型窗打开时恢复全屏拦截，点窗外不会误触大厅；拖动与缩放全程不误触  
+27. 官方头像走游戏自己的加载链：日志出现 `local sprite via <route>: <ref>` 或 `game sprite loaded: <ref>`，且不再出现 `shared image failed (download failed): Avtr_...`。若看到 `local sprite miss: <ref> tried=<候选名列表>` 紧跟 `game sprite load failed`，说明两条链都不认这个名字，下一步按 `tried=` 里的候选名另找入口；出现 `game sprite host unavailable` / `game sprite load unavailable` 说明隐藏 `GRImage` 这条路在本版本行不通。本版本元数据里没有 `PlayerPortraitSpriteSelector`（只有 CommanderSkill / Technology / Mech / Officer 四个），所以 `portrait:` 这条大概率不会命中，真正指望的是 `game sprite loaded`。任何情况下都**不要**改回把裸精灵名当 URL 下载；也**不要**未经确认就恢复「从原生 cell 借 sprite」那一层（已按决策退役）  
+28. 状态一眼可辨：五种状态颜色互不相同（PvE 不再与强调色同色），状态文字带同色底胶囊，菱形足够大；鼠标悬停在某行时该行状态菱形仍然可见  
 
 ## 工程结构
 
@@ -119,9 +122,9 @@ MelonPreferences 分类 `FriendOverlay`：
   - `UI/Theme.cs`、`UI/Gfx.cs`、`UI/Anim.cs` — 调色板 / 绘制原语 / 动效
   - `Compat/Capabilities.cs` — 逐功能能力探测
   - `Data/GameProxies.cs`、`Data/FansListService.cs`、`Data/PinStore.cs`、`Data/PortraitResolver.cs`、`Data/FriendRowMapper.cs` — LobbyProxy 定位 / 关注我的人 / 置顶 / 头像来源解析 / 行映射
-  - `UI/GameAssets.cs`、`UI/AvatarCache.cs`、`UI/AvatarLoader.cs`、`UI/GameSpriteResolver.cs`、`UI/SharedImageCache.cs` — 头像来源路由、按玩家缓存、共享资源（官方头像 / 边框 / 占位图）缓存与下载
+  - `UI/GameAssets.cs`、`UI/AvatarCache.cs`、`UI/AvatarLoader.cs`、`UI/GameSpriteResolver.cs`、`UI/GameSpriteLoader.cs`、`UI/SharedImageCache.cs` — 头像来源路由、按玩家缓存、共享资源（官方头像 / 边框 / 占位图）的本地精灵查表、走游戏 `SpriteManager.LoadSprite` 的异步加载、以及 HTTP 下载
   - `Data/FaceBlockPolicy.cs` — 复用游戏自己的判定，识别被屏蔽的头像
-  - `UI/InputShield.cs` — 叠加期间的全屏 uGUI 挡板
+  - `UI/InputShield.cs` — 与叠加窗同尺寸的 uGUI 挡板（模态时才全屏）
   - `UI/Widgets/` — SearchBox / SegmentedChips / ScrollBar / RowCard / SectionHeader
   - `UI/OverlayPanel.cs` — 窗口编排
 - `tests/FriendOverlay.Tests` — Core 单测

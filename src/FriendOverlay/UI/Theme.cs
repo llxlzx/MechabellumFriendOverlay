@@ -34,7 +34,10 @@ namespace FriendOverlay.UI
 
         public static readonly Color StBattle = Hex(0xE8912A);
         public static readonly Color StIdle = Hex(0x3FD0A0);
-        public static readonly Color StPve = Hex(0x5AC8E0);
+
+        // Deliberately off the accent hue: while Pve shared Accent's cyan, a PvE row was
+        // indistinguishable from every hovered or selected control in the panel.
+        public static readonly Color StPve = Hex(0xB388FF);
         public static readonly Color StWaiting = Hex(0xD9C23A);
         public static readonly Color StOffline = Hex(0x5E6B82);
 

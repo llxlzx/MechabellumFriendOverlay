@@ -222,7 +222,24 @@ namespace FriendOverlay.UI
             Gfx.GlobalAlpha = 1f;
             ImguiConfirm.Draw();
             ImguiBattleTypePicker.Draw();
+            SyncInputShield();
             ConsumePointerEvents();
+        }
+
+        /// <summary>
+        /// Keeps the uGUI blocker on the same footprint IMGUI swallows events for, so the lobby stays
+        /// clickable around the panel. The cases are deliberately the same ones ConsumePointerEvents
+        /// treats as screen-wide.
+        /// </summary>
+        private static void SyncInputShield()
+        {
+            if (!InputShield.Active)
+                return;
+
+            if (_dragging || _resizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen)
+                InputShield.SyncFullScreen();
+            else
+                InputShield.SyncRect(_window);
         }
 
         /// <summary>

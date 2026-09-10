@@ -47,13 +47,49 @@ namespace FriendOverlay.UI
             if (entry.Failed)
                 return false;
 
-            if (GameSpriteResolver.TryGetLocalSprite(imageRef!, out var sprite))
+            var lookup = GameSpriteResolver.Lookup(imageRef!, out var sprite);
+            if (lookup == SpriteLookup.Hit)
             {
                 entry.Sprite = sprite;
                 return true;
             }
 
+            // Not a miss yet — the sprite manager may not even exist this early in a session. Latching a
+            // failure here is what would turn a slow start into letters for the rest of the session.
+            if (lookup == SpriteLookup.Retry)
+                return true;
+
             var url = GameSpriteResolver.ToUrl(imageRef!);
+
+            // A reference that is not a URL cannot be downloaded, and pretending otherwise is what
+            // produced a "download failed" line for every official avatar. Those go to the game's own
+            // sprite loader instead, which reaches assets the local tables do not hold yet. The resolved
+            // value is logged because it is the only way to tell a bare sprite name from a URL the
+            // game's fixer built and got wrong.
+            if (!GameSpriteResolver.IsDownloadable(imageRef!))
+            {
+                // Set first: the callback can fire before TryStartGameLoad returns.
+                entry.Pending = true;
+                if (GameSpriteResolver.TryStartGameLoad(imageRef!, sprite =>
+                {
+                    entry.Pending = false;
+                    if (sprite == null)
+                    {
+                        Fail(entry, imageRef!, "game sprite load failed");
+                        return;
+                    }
+
+                    entry.Sprite = sprite;
+                }))
+                {
+                    return true;
+                }
+
+                entry.Pending = false;
+                Fail(entry, imageRef!, "not in the sprite table, and not a url: " + url);
+                return false;
+            }
+
             if (!AvatarLoader.WillAttempt(url))
             {
                 Fail(entry, imageRef!, "no local sprite and url rejected");

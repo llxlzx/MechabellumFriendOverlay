@@ -162,7 +162,9 @@ namespace FriendOverlay.UI
                         ScaleMode.StretchToFill,
                         true,
                         0f,
-                        color,
+                        // Apply, not color: this path bypasses Fill, so without it rounded fills ignore
+                        // the fade-in and pop in at full opacity while everything else is still fading.
+                        Apply(color),
                         Vector4.zero,
                         new Vector4(radius, radius, radius, radius));
                     return;

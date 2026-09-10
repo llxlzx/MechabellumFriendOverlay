@@ -96,7 +96,11 @@ namespace FriendOverlay.UI.Widgets
             var actionsW = ActionsWidth(ctx);
             var statusW = Theme.S(110f);
             var restingW = statusW + Theme.S(6f) + MoreWidth;
-            var textW = Mathf.Max(Theme.S(80f), rightLimit - textX - (hovered ? actionsW : restingW) - Theme.S(12f));
+
+            // The status diamond sits left of the pill (or of the action buttons) and is wide enough
+            // now that the name and stats have to stop short of it.
+            var dotSpace = Theme.S(28f);
+            var textW = Mathf.Max(Theme.S(80f), rightLimit - textX - (hovered ? actionsW : restingW) - dotSpace);
 
             var nameX = textX;
             if (row.IsMutual)
@@ -121,6 +125,14 @@ namespace FriendOverlay.UI.Widgets
                 var hoverAction = DrawActions(actionsR, row, ctx, menuOpen);
                 if (hoverAction != RowAction.None)
                     action = hoverAction;
+
+                // The action buttons take the label's place, so without this the status disappears
+                // exactly while the cursor is on the row the player is deciding about.
+                Gfx.Diamond(
+                    new Vector2(actionsR.x - Theme.S(14f), r.y + r.height * 0.5f),
+                    Theme.S(7f),
+                    statusColor,
+                    row.StatusKind != FriendStatusKind.Offline);
             }
             else
             {
@@ -132,13 +144,28 @@ namespace FriendOverlay.UI.Widgets
                 if (Button(moreR, "⋯", Theme.Chip, interactive, false, subdued: true) && action == RowAction.None)
                     action = RowAction.ToggleMenu;
 
-                var statusR = new Rect(moreR.x - Theme.S(6f) - statusW, r.y, statusW, r.height);
-                Gfx.Text(statusR, row.StatusLabel, statusColor, Theme.StatusRight);
+                // Tinted pill behind the label, same idiom as the section count badge. Coloured text
+                // alone was too thin a signal to read at a glance down a long list. The pill hugs its
+                // label and keeps its right edge on the column, so the marker still forms a clean
+                // vertical line whatever the labels are.
+                var dotLead = Theme.S(26f);
+                var chipH = Theme.S(22f);
+                var chipW = Mathf.Min(statusW, dotLead + LabelWidth(row.StatusLabel) + Theme.S(10f));
+                var chipR = new Rect(
+                    moreR.x - Theme.S(6f) - chipW,
+                    r.y + (r.height - chipH) * 0.5f,
+                    chipW,
+                    chipH);
 
-                var dotX = statusR.x - Theme.S(12f);
+                Gfx.RoundRect(chipR, new Color(statusColor.r, statusColor.g, statusColor.b, 0.18f), chipH * 0.5f);
+                Gfx.Text(new Rect(chipR.x + dotLead, chipR.y, chipR.width - dotLead - Theme.S(10f), chipR.height),
+                    row.StatusLabel,
+                    statusColor,
+                    Theme.StatusRight);
+
                 Gfx.Diamond(
-                    new Vector2(dotX, r.y + r.height * 0.5f),
-                    Theme.S(4f),
+                    new Vector2(chipR.x + Theme.S(14f), r.y + r.height * 0.5f),
+                    Theme.S(7f),
                     statusColor,
                     row.StatusKind != FriendStatusKind.Offline);
             }
@@ -182,6 +209,23 @@ namespace FriendOverlay.UI.Widgets
                 return RowAction.Blacklist;
 
             return RowAction.None;
+        }
+
+        /// <summary>
+        /// Rough advance width for the status label. GUIStyle.CalcSize is one more API this IL2CPP
+        /// build may not carry, and a pill background does not need to be pixel exact — CJK glyphs are
+        /// about square at this size, Latin ones about half.
+        /// </summary>
+        private static float LabelWidth(string? label)
+        {
+            if (string.IsNullOrEmpty(label))
+                return 0f;
+
+            var w = 0f;
+            foreach (var ch in label!)
+                w += ch > 0x2E80 ? Theme.S(15f) : Theme.S(9f);
+
+            return w;
         }
 
         public static string FormatNum(int n)

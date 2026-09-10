@@ -282,6 +282,14 @@ namespace FriendOverlay.UI
                 EnsureView(src);
 
                 DrawList(listRect, src.Count);
+
+                // A row that only half fits is still drawn at full height, so rows reach into the
+                // strips above and below the viewport. Those strips are the mask, which means they
+                // have to be opaque: the window fill alone is 0.97 and lets scrolled rows glow
+                // through the search row.
+                Gfx.Fill(new Rect(0f, titleH, _window.width, listRect.y - titleH), Theme.ChromeBg);
+                Gfx.Fill(new Rect(0f, listRect.yMax, _window.width, _window.height - listRect.yMax), Theme.ChromeBg);
+
                 DrawTitleBar(new Rect(0f, 0f, _window.width, titleH), pad, _view.Count);
                 DrawToolbar(new Rect(pad, titleH + Theme.S(8f), _window.width - pad * 2f, toolbarH));
                 DrawStatusBar(new Rect(pad, titleH + Theme.S(8f) + toolbarH + Theme.S(6f), _window.width - pad * 2f, statusH),

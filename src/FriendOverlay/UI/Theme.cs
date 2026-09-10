@@ -13,6 +13,12 @@ namespace FriendOverlay.UI
     {
         public static readonly Color Bg0 = Hex(0x0A1322, 0.97f);
         public static readonly Color Bg1 = Hex(0x0E1A2E, 0.98f);
+
+        /// <summary>
+        /// Bg0's hue at full opacity. The chrome around the list is what hides rows that overflow the
+        /// viewport, so it cannot be even slightly translucent, but it still has to match the window.
+        /// </summary>
+        public static readonly Color ChromeBg = Hex(0x0A1322, 1f);
         public static readonly Color Card = Hex(0x142440, 0.96f);
         public static readonly Color CardHover = Hex(0x1B3050, 0.98f);
 

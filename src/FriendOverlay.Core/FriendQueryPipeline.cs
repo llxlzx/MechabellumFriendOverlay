@@ -58,7 +58,13 @@ namespace FriendOverlay.Core
                         .ThenBy(r => r.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase);
                     break;
                 default:
+                    // This is the UI's 「状态」 sort, so the status has to lead: StatusKind gathers the
+                    // colour buckets (idle before waiting before pve before battle) and the raw State
+                    // separates labels that share a bucket, such as 1V1对战 and 2V2对战. Without the
+                    // second key a rank-sorted list interleaves 观战中 with 对战中 inside one section.
                     q = q.OrderByDescending(r => r.IsOnline)
+                        .ThenBy(r => (int)r.StatusKind)
+                        .ThenBy(r => r.State)
                         .ThenByDescending(r => r.IsMutual)
                         .ThenByDescending(r => r.RankPoint)
                         .ThenByDescending(r => r.ForecastPoint)

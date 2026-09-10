@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.5", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.6", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -60,16 +60,6 @@ namespace FriendOverlay
                 OverlaySession.Degraded = true;
                 LoggerInstance.Error("Harmony patch failed; fail-open. " + ex);
                 return;
-            }
-
-            // Probe only, and isolated: a drifted signature here must not disable the whole mod.
-            try
-            {
-                InviteTrace.Apply(HarmonyInstance);
-            }
-            catch (System.Exception ex)
-            {
-                LoggerInstance.Warning("InviteTrace skipped: " + ex.Message);
             }
         }
 

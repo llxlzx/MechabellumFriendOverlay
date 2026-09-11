@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -31,6 +31,7 @@
     <Compile Include="..\FriendOverlay.Core\PortraitPlan.cs" Link="Core\PortraitPlan.cs" />
     <Compile Include="..\FriendOverlay.Core\Presence.cs" Link="Core\Presence.cs" />
     <Compile Include="..\FriendOverlay.Core\BakeBudget.cs" Link="Core\BakeBudget.cs" />
+    <Compile Include="..\FriendOverlay.Core\VisibleRowRange.cs" Link="Core\VisibleRowRange.cs" />
   </ItemGroup>
 
   <ItemGroup>

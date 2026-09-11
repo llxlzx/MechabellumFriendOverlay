@@ -121,7 +121,8 @@ namespace FriendOverlay.Data
                     _nextOnlineAt = Time.unscaledTime + 2.5f;
                 }
 
-                UI.GameAssets.RequestMissingAvatars(_snapshot);
+                if (OverlaySession.OverlayVisible)
+                    UI.GameAssets.RequestMissingAvatars(_snapshot);
             }
             catch (Exception ex)
             {

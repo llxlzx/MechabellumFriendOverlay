@@ -183,15 +183,18 @@ namespace FriendOverlay.UI
             _visibleSince = -1f;
             _wasVisible = false;
             _avatarPriorityIds.Clear();
+            _avatarPriorityFrame = 0;
             InvalidateView();
         }
 
         public static bool IsAvatarPriority(ulong userId)
         {
-            if (_avatarPriorityIds.Count == 0)
+            if (_avatarPriorityFrame == 0)
                 return true;
             if (Time.frameCount - _avatarPriorityFrame > 2)
                 return true;
+            if (_avatarPriorityIds.Count == 0)
+                return false;
             return _avatarPriorityIds.Contains(userId);
         }
 
@@ -510,6 +513,8 @@ namespace FriendOverlay.UI
 
             if (_items.Count == 0)
             {
+                _avatarPriorityIds.Clear();
+                _avatarPriorityFrame = Time.frameCount;
                 var msg = Tab == FriendListTab.Followers
                     ? (FansListService.IsLoading || totalLoaded == 0 ? "正在拉取关注我的人…" : "没有符合条件的玩家")
                     : (totalLoaded == 0 ? "正在拉取关注列表…" : "没有符合条件的好友");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FriendOverlay.Core;
 using Il2CppGameRiver.Client;
 using Il2CppInterop.Runtime;
 using MelonLoader;
@@ -9,12 +10,14 @@ using UnityEngine.UI;
 namespace FriendOverlay.UI
 {
     /// <summary>
-    /// Resolves official avatar / frame keys (<c>Avtr_*</c>, <c>Af_*</c>) through the game's own
-    /// prefab registry. These keys are not sprite-table names and not URLs:
-    /// <c>SpriteManager.LoadSprite</c> throws <see cref="UriFormatException"/> on them (0.3.7), and
-    /// <c>ResourceDataDownloader.DownloadImage</c> only CDN-prefixes them into a 404.
-    /// <see cref="GRAvatarManager.getAvatar"/> / <c>getOutLine</c> are the keyed lookup the native
-    /// portrait path uses — not a borrow from a FriendCellNode by list position.
+    /// Resolves official avatar / frame keys the way the native list does.
+    /// <list type="number">
+    /// <item><c>getGif</c> — animated keys such as <c>Avtr_G_*</c> already store <c>Sprite[]</c>.</item>
+    /// <item><c>GRImage.SetPlayerPortrait</c> — instantiates the prefab under <c>avatarObj</c> /
+    /// <c>outlineObj</c>; we then read a drawable sprite off that instance (not off the asset).</item>
+    /// </list>
+    /// Bare keys are not URLs and are not in the untyped sprite tables; <c>LoadSprite</c> /
+    /// <c>DownloadImage</c> paths stay reserved for real http(s) refs only.
     /// </summary>
     public static class GameSpriteLoader
     {
@@ -26,14 +29,16 @@ namespace FriendOverlay.UI
         private static bool _hostFailed;
         private static bool _loggedNoManager;
         private static bool _loggedLoadSpriteFail;
-        private static bool _loggedExtractFail;
+        private static bool _loggedPortraitFail;
+        private static bool _loggedOutlineMiss;
         private static int _hitLogs;
 
         /// <summary>
-        /// True when a load is in flight or was started. False means the registry is not ready yet —
-        /// the caller must retry, not Fail the entry.
+        /// True when a load finished or is in flight. False means the registry is not ready —
+        /// the caller must retry, not Fail the entry. Official keys are returned as owned
+        /// <see cref="Texture2D"/> arrays (length 1 for static, N for GIF); the caller destroys them.
         /// </summary>
-        public static bool TryLoad(string imageRef, SpriteManager? sm, Action<Sprite?> done)
+        public static bool TryLoad(string imageRef, SpriteManager? sm, Action<Texture2D[]?> done)
         {
             if (string.IsNullOrEmpty(imageRef))
                 return false;
@@ -46,7 +51,7 @@ namespace FriendOverlay.UI
                 if (sm == null)
                     return false;
 
-                return TryLoadSprite(imageRef, sm, done);
+                return TryLoadSprite(imageRef, sm, sprite => done(SingleOrNull(SpriteBake.ToTexture(sprite))));
             }
 
             var mgr = TryGetManager();
@@ -55,29 +60,57 @@ namespace FriendOverlay.UI
 
             try
             {
-                var prefab = ResolvePrefab(mgr, imageRef);
-                if (prefab == null)
+                LogGifDiagOnce(mgr);
+
+                // Battlefield/emote sheets (bf-*) only — Avtr_G_* is NOT in gifInfos.
+                if (!OfficialImageKeys.IsLikelyGifKey(imageRef) &&
+                    !imageRef.StartsWith("Avtr_", StringComparison.OrdinalIgnoreCase) &&
+                    !OfficialImageKeys.IsOutlineKey(imageRef) &&
+                    TryGifBake(mgr, imageRef, out var sheetFrames))
                 {
-                    done(null);
+                    LiveGifHost.LastFrameSeconds = GifPlayback.DefaultFrameSeconds;
+                    LogHit("game avatar gif-sheet: " + imageRef + " frames=" + sheetFrames!.Length);
+                    done(sheetFrames);
                     return true;
                 }
 
-                var sprite = ExtractSprite(prefab);
-                if (sprite == null && !_loggedExtractFail)
+                // Animated portraits (Avtr_G_*) and animated frames (Af_*) both come from a prefab that
+                // may carry GRGif. Try the prefab first for either: compose flattens one arbitrary
+                // moment and, for frames, was latching a sparse partial ring as a success.
+                if (OfficialImageKeys.IsLikelyGifKey(imageRef) || OfficialImageKeys.IsOutlineKey(imageRef))
                 {
-                    _loggedExtractFail = true;
-                    MelonLogger.Warning(
-                        "[FriendOverlay] avatar prefab has no usable sprite: " + imageRef +
-                        " type=" + prefab.name);
+                    var result = LiveGifHost.TryBakeFrames(mgr, imageRef, out var fromPrefab);
+                    if (result == LiveGifHost.PrefabResult.Ready && fromPrefab != null && fromPrefab.Length > 0)
+                    {
+                        string tag;
+                        if (fromPrefab.Length > 1)
+                            tag = OfficialImageKeys.IsOutlineKey(imageRef) ? "outline-gif-root" : "prefab-gif-root";
+                        else
+                            tag = OfficialImageKeys.IsOutlineKey(imageRef) ? "outline-static-root" : "portrait-static-root";
+                        LogHit("game avatar " + tag + ": " + imageRef + " frames=" + fromPrefab.Length);
+                        done(fromPrefab);
+                        return true;
+                    }
+
+                    if (result == LiveGifHost.PrefabResult.Pending)
+                    {
+                        done(null);
+                        return true;
+                    }
                 }
 
-                if (sprite != null && _hitLogs < 6)
+                if (TryPortraitCompose(imageRef, out var composed))
                 {
-                    _hitLogs++;
-                    MelonLogger.Msg("[FriendOverlay] game avatar prefab: " + imageRef);
+                    var tag = OfficialImageKeys.IsOutlineKey(imageRef) ? "outline-static" : "portrait";
+                    LogHit("game avatar " + tag + " capture-root: " + imageRef + " frames=1");
+                    done(SingleOrNull(composed));
+                    return true;
                 }
 
-                done(sprite);
+                if (OfficialImageKeys.IsOutlineKey(imageRef))
+                    LogOutlineMissOnce(mgr, imageRef);
+
+                done(null);
                 return true;
             }
             catch (Exception ex)
@@ -88,13 +121,19 @@ namespace FriendOverlay.UI
             }
         }
 
+        private static Texture2D[]? SingleOrNull(Texture2D? tex) =>
+            AvatarCache.IsUsableTexture(tex) ? new[] { tex! } : null;
+
         public static void Reset()
         {
             _pending.Clear();
             _alive.Clear();
             _loggedNoManager = false;
             _loggedLoadSpriteFail = false;
-            _loggedExtractFail = false;
+            _loggedPortraitFail = false;
+            _loggedOutlineMiss = false;
+            _loggedBlitFallback = false;
+            _loggedGifDiag = false;
             _hitLogs = 0;
 
             try
@@ -134,75 +173,394 @@ namespace FriendOverlay.UI
             return null;
         }
 
-        /// <summary>
-        /// Avatars and outlines live in separate dictionaries. Try the obvious one first, then the
-        /// other, then a GIF's first frame — some keys only exist in one of the three.
-        /// </summary>
-        private static GameObject? ResolvePrefab(GRAvatarManager mgr, string imageRef)
+        private static bool _loggedGifDiag;
+
+        private static bool TryGifBake(GRAvatarManager mgr, string imageRef, out Texture2D[]? frames)
         {
-            GameObject? go = null;
-
-            var preferOutline = imageRef.StartsWith("Af_", StringComparison.OrdinalIgnoreCase) ||
-                                imageRef.StartsWith("AF_", StringComparison.Ordinal);
-
+            frames = null;
             try
             {
-                go = preferOutline ? mgr.getOutLine(imageRef) : mgr.getAvatar(imageRef);
+                foreach (var key in OfficialImageKeys.ExactVariants(imageRef))
+                {
+                    Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Sprite>? sprites = null;
+                    try { sprites = mgr.getGif(key); } catch { sprites = null; }
+
+                    if ((sprites == null || sprites.Length == 0) && mgr.gifInfos != null)
+                        sprites = LookupGifFrames(mgr, key);
+
+                    if ((sprites == null || sprites.Length == 0) && mgr._gifInfo != null)
+                        sprites = LookupGifPara(mgr._gifInfo, key);
+
+                    if (sprites == null || sprites.Length == 0)
+                        continue;
+
+                    var cap = OverlayPerfSettings.TargetGifFrameCount(sprites.Length);
+                    var list = new List<Texture2D>(cap);
+                    for (var i = 0; i < cap; i++)
+                    {
+                        if (!AvatarCache.IsUsableSprite(sprites[i]))
+                            continue;
+
+                        var baked = SpriteBake.ToTexture(sprites[i]);
+                        if (baked != null)
+                            list.Add(baked);
+                    }
+
+                    if (list.Count == 0)
+                        continue;
+
+                    frames = list.ToArray();
+                    return true;
+                }
             }
             catch
             {
-                go = null;
+                // key not in gif tables
             }
 
-            if (go != null)
-                return go;
-
-            try
-            {
-                go = preferOutline ? mgr.getAvatar(imageRef) : mgr.getOutLine(imageRef);
-            }
-            catch
-            {
-                go = null;
-            }
-
-            return go;
+            return false;
         }
 
-        private static Sprite? ExtractSprite(GameObject prefab)
+        private static Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Sprite>? LookupGifFrames(
+            GRAvatarManager mgr,
+            string imageRef)
         {
             try
             {
-                // Prefab assets are inactive; includeInactive must be true or every child Image is
-                // skipped and we report a miss for a registry hit.
-                var images = prefab.GetComponentsInChildren<Image>(true);
-                if (images != null)
-                {
-                    for (var i = 0; i < images.Length; i++)
-                    {
-                        var sprite = images[i]?.sprite;
-                        if (AvatarCache.IsUsableSprite(sprite))
-                            return sprite;
-                    }
-                }
+                var dict = mgr.gifInfos;
+                if (dict == null)
+                    return null;
 
-                var renderers = prefab.GetComponentsInChildren<SpriteRenderer>(true);
-                if (renderers != null)
+                if (dict.ContainsKey(imageRef))
+                    return dict[imageRef];
+
+                foreach (var key in dict.Keys)
                 {
-                    for (var i = 0; i < renderers.Length; i++)
-                    {
-                        var sprite = renderers[i]?.sprite;
-                        if (AvatarCache.IsUsableSprite(sprite))
-                            return sprite;
-                    }
+                    if (key != null && OfficialImageKeys.ExactEquals(key, imageRef))
+                        return dict[key];
                 }
             }
             catch
             {
-                // component strip / prefab shape changed
+                // dictionary shape changed
             }
 
             return null;
+        }
+
+        private static Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Sprite>? LookupGifPara(
+            GifInfo info,
+            string imageRef)
+        {
+            try
+            {
+                var list = info.gifParas;
+                if (list == null)
+                    return null;
+
+                for (var i = 0; i < list.Count; i++)
+                {
+                    var para = list[i];
+                    if (para == null || string.IsNullOrEmpty(para.name))
+                        continue;
+
+                    if (OfficialImageKeys.ExactEquals(para.name, imageRef))
+                        return para.sprites;
+                }
+            }
+            catch
+            {
+                // GifPara shape changed
+            }
+
+            return null;
+        }
+
+        private static void LogGifDiagOnce(GRAvatarManager mgr)
+        {
+            if (_loggedGifDiag)
+                return;
+
+            _loggedGifDiag = true;
+            try
+            {
+                var count = 0;
+                var sample = string.Empty;
+                if (mgr.gifInfos != null)
+                {
+                    count = mgr.gifInfos.Count;
+                    foreach (var key in mgr.gifInfos.Keys)
+                    {
+                        if (key == null)
+                            continue;
+                        if (sample.Length == 0 || OfficialImageKeys.IsLikelyGifKey(key))
+                            sample = key;
+                        if (OfficialImageKeys.IsLikelyGifKey(key))
+                            break;
+                    }
+                }
+
+                MelonLogger.Msg(
+                    "[FriendOverlay] gifInfos count=" + count +
+                    " sample=" + (string.IsNullOrEmpty(sample) ? "(none)" : sample) +
+                    " (portrait GIFs use getAvatar, not gifInfos)");
+
+                try
+                {
+                    var probe = mgr.getAvatar("Avtr_G_01-01A");
+                    MelonLogger.Msg(
+                        "[FriendOverlay] getAvatar(Avtr_G_01-01A)=" +
+                        (probe != null ? probe.name : "null"));
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Msg("[FriendOverlay] getAvatar diag failed: " + ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Msg("[FriendOverlay] gifInfos diag failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Instantiates via SetPlayerPortrait, then Camera+RT captures the whole avatarObj/outlineObj
+        /// hierarchy. Per-layer SpriteBake stamp was the source of multi-tile collage avatars.
+        /// </summary>
+        private static bool TryPortraitCompose(string imageRef, out Texture2D? texture)
+        {
+            texture = null;
+            var image = EnsureImage();
+            if (image == null)
+                return false;
+
+            var outlineKey = IsOutlineKey(imageRef) ? imageRef : string.Empty;
+            var avatarKey = outlineKey.Length == 0 ? imageRef : string.Empty;
+
+            try
+            {
+                try { image.SetPlayerPortrait(string.Empty, string.Empty, string.Empty); } catch { /* ok */ }
+
+                image.SetPlayerPortrait(string.Empty, outlineKey, avatarKey);
+                var root = outlineKey.Length > 0 ? image.outlineObj : image.avatarObj;
+                texture = CapturePortraitRoot(root);
+                if (AvatarCache.IsUsableTexture(texture))
+                    return true;
+
+                if (texture != null)
+                {
+                    try { UnityEngine.Object.Destroy(texture); } catch { /* ok */ }
+                    texture = null;
+                }
+
+                if (outlineKey.Length > 0)
+                {
+                    image.SetPlayerPortrait(string.Empty, string.Empty, imageRef);
+                    texture = CapturePortraitRoot(image.avatarObj);
+                }
+                else
+                {
+                    image.SetPlayerPortrait(string.Empty, imageRef, string.Empty);
+                    texture = CapturePortraitRoot(image.outlineObj);
+                }
+
+                if (AvatarCache.IsUsableTexture(texture))
+                    return true;
+
+                if (texture != null)
+                {
+                    try { UnityEngine.Object.Destroy(texture); } catch { /* ok */ }
+                    texture = null;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                if (!_loggedPortraitFail)
+                {
+                    _loggedPortraitFail = true;
+                    MelonLogger.Warning("[FriendOverlay] SetPlayerPortrait unavailable: " + ex.Message);
+                }
+
+                if (texture != null)
+                {
+                    try { UnityEngine.Object.Destroy(texture); } catch { /* ok */ }
+                }
+
+                texture = null;
+                return false;
+            }
+        }
+
+        private static bool IsOutlineKey(string imageRef) => OfficialImageKeys.IsOutlineKey(imageRef);
+
+        private static bool _loggedBlitFallback;
+
+        private static Texture2D? CapturePortraitRoot(GameObject? root)
+        {
+            if (root == null)
+                return null;
+
+            try { root.SetActive(true); } catch { /* ok */ }
+            var tex = SpriteCapture.CaptureRoot(root);
+            if (SpriteCapture.IsAcceptable(tex))
+                return tex;
+
+            if (tex != null)
+            {
+                try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
+            }
+
+            var ranked = RankPortraitSprites(root);
+            for (var i = 0; i < ranked.Count; i++)
+            {
+                var sp = ranked[i];
+                tex = SpriteCapture.Capture(sp);
+                if (SpriteCapture.IsAcceptable(tex))
+                {
+                    LogPortraitBlitOnce();
+                    return tex;
+                }
+
+                if (tex != null)
+                {
+                    try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
+                }
+
+                tex = SpriteBake.ToTexture(sp);
+                if (SpriteCapture.IsAcceptable(tex))
+                {
+                    LogPortraitBlitOnce();
+                    return tex;
+                }
+
+                if (tex != null)
+                {
+                    try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
+                    tex = null;
+                }
+            }
+
+            return null;
+        }
+
+        private static void LogPortraitBlitOnce()
+        {
+            if (_loggedBlitFallback)
+                return;
+            _loggedBlitFallback = true;
+            MelonLogger.Msg("[FriendOverlay] blit-fallback portrait via single-sprite");
+        }
+
+        private static List<Sprite> RankPortraitSprites(GameObject root)
+        {
+            var list = new List<(Sprite Sp, float Area)>();
+            try
+            {
+                var images = root.GetComponentsInChildren<Image>(true);
+                if (images == null)
+                    return new List<Sprite>();
+
+                for (var i = 0; i < images.Length; i++)
+                {
+                    var img = images[i];
+                    if (img == null || !img.enabled)
+                        continue;
+                    try
+                    {
+                        if (img.GetComponent<Mask>() != null)
+                            continue;
+                    }
+                    catch { /* ok */ }
+
+                    try
+                    {
+                        if (img.color.a < 0.02f)
+                            continue;
+                    }
+                    catch { /* ok */ }
+
+                    var sp = img.sprite;
+                    if (!AvatarCache.IsUsableSprite(sp))
+                        continue;
+
+                    float area;
+                    try
+                    {
+                        var tr = sp!.textureRect;
+                        if (tr.width < 32f || tr.height < 32f)
+                            continue;
+                        area = tr.width * tr.height;
+                    }
+                    catch { continue; }
+
+                    list.Add((sp!, area));
+                }
+            }
+            catch
+            {
+                return new List<Sprite>();
+            }
+
+            list.Sort((a, b) =>
+            {
+                var aBig = a.Area >= 512f * 512f;
+                var bBig = b.Area >= 512f * 512f;
+                if (aBig != bBig)
+                    return aBig ? 1 : -1;
+                return b.Area.CompareTo(a.Area);
+            });
+
+            var result = new List<Sprite>(list.Count);
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (!result.Contains(list[i].Sp))
+                    result.Add(list[i].Sp);
+            }
+
+            return result;
+        }
+
+        private static void LogOutlineMissOnce(GRAvatarManager mgr, string imageRef)
+        {
+            if (_loggedOutlineMiss)
+                return;
+
+            _loggedOutlineMiss = true;
+            var detail = string.Empty;
+            foreach (var key in OfficialImageKeys.ExactVariants(imageRef))
+            {
+                var state = "null";
+                try
+                {
+                    var prefab = mgr.getOutLine(key);
+                    if (prefab != null)
+                    {
+                        var hasGif = false;
+                        try { hasGif = prefab.GetComponentInChildren<GRGif>(true) != null; }
+                        catch { /* component type unavailable */ }
+                        state = prefab.name + (hasGif ? " +GRGif" : " no-GRGif");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    state = "throw:" + ex.Message;
+                }
+
+                detail += " " + key + "=" + state;
+            }
+
+            MelonLogger.Warning("[FriendOverlay] outline key unresolved: " + imageRef + " ->" + detail);
+        }
+
+        private static void LogHit(string message)
+        {
+            if (_hitLogs >= 32)
+                return;
+
+            _hitLogs++;
+            MelonLogger.Msg("[FriendOverlay] " + message);
         }
 
         private static bool TryLoadSprite(string imageRef, SpriteManager sm, Action<Sprite?> done)
@@ -269,6 +627,10 @@ namespace FriendOverlay.UI
                 var canvas = host.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = -32760;
+                var group = host.AddComponent<CanvasGroup>();
+                group.alpha = 0f;
+                group.blocksRaycasts = false;
+                group.interactable = false;
 
                 var child = new GameObject("Probe");
                 child.transform.SetParent(host.transform, false);
@@ -277,6 +639,7 @@ namespace FriendOverlay.UI
                 image.color = new Color(0f, 0f, 0f, 0f);
                 image.raycastTarget = false;
                 image.rectTransform.sizeDelta = new Vector2(1f, 1f);
+                image.rectTransform.anchoredPosition = new Vector2(-4000f, -4000f);
 
                 _host = host;
                 _image = image;

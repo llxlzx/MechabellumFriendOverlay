@@ -30,6 +30,7 @@
     <Compile Include="..\FriendOverlay.Core\PinnedIds.cs" Link="Core\PinnedIds.cs" />
     <Compile Include="..\FriendOverlay.Core\PortraitPlan.cs" Link="Core\PortraitPlan.cs" />
     <Compile Include="..\FriendOverlay.Core\Presence.cs" Link="Core\Presence.cs" />
+    <Compile Include="..\FriendOverlay.Core\BakeBudget.cs" Link="Core\BakeBudget.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -125,3 +126,4 @@
     <Message Importance="high" Text="Deployed $(TargetFileName) v$(Version) to $(GameRoot)\Mods" />
   </Target>
 </Project>
+

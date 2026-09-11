@@ -1,4 +1,5 @@
 using Il2CppGameRiver.Client;
+using MelonLoader;
 using UnityEngine;
 
 namespace FriendOverlay.State
@@ -33,6 +34,7 @@ namespace FriendOverlay.State
         private static CanvasGroup? _group;
         private static bool _groupAddedByUs;
         private static bool _transparentFailed;
+        private static bool _unloadQueued;
 
         /// <summary>Start or refresh a friends session using the user's default overlay preference.</summary>
         public static void Begin(FriendPanel panel, bool resetModeToPreference = true)
@@ -121,6 +123,31 @@ namespace FriendOverlay.State
             UI.AvatarCache.Clear();
             UI.GameAssets.Reset();
             FriendOverlay.Core.BakeBudget.Reset();
+            ScheduleUnloadUnusedAssets();
+        }
+
+        private static void ScheduleUnloadUnusedAssets()
+        {
+            if (_unloadQueued)
+                return;
+
+            _unloadQueued = true;
+            MelonCoroutines.Start(UnloadAfterClose());
+        }
+
+        private static System.Collections.IEnumerator UnloadAfterClose()
+        {
+            yield return null;
+            _unloadQueued = false;
+
+            try
+            {
+                Resources.UnloadUnusedAssets();
+            }
+            catch
+            {
+                // ok
+            }
         }
 
         /// <summary>
@@ -173,6 +200,8 @@ namespace FriendOverlay.State
             {
                 // ignore
             }
+
+            ResetAvatarPipeline();
 
             MelonLoader.MelonLogger.Error("[FriendOverlay] Fail-open: " + reason);
         }

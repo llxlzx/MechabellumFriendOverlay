@@ -23,6 +23,8 @@ namespace FriendOverlay.UI
         // "u:<uid>" for a player's own photo, "url:<url>" for an asset many players share.
         private static readonly HashSet<string> _inFlight = new HashSet<string>(StringComparer.Ordinal);
         private static readonly Dictionary<string, string> _failedUrls = new Dictionary<string, string>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, UnityWebRequest> _requests =
+            new Dictionary<string, UnityWebRequest>(StringComparer.Ordinal);
 
         private static int _active;
         private static int _generation;
@@ -159,6 +161,21 @@ namespace FriendOverlay.UI
 
         public static void Reset()
         {
+            foreach (var request in _requests.Values)
+            {
+                try
+                {
+                    request?.Abort();
+                    request?.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            _requests.Clear();
+
             // Coroutines from the previous session finish later; bump the generation so their
             // results are discarded. _active keeps counting them, otherwise the new session could
             // run four more downloads on top of the ones still in flight.
@@ -185,6 +202,7 @@ namespace FriendOverlay.UI
                 request = UnityWebRequest.Get(url);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.timeout = TimeoutSeconds;
+                _requests[key] = request;
                 request.SendWebRequest();
                 started = true;
             }
@@ -200,6 +218,7 @@ namespace FriendOverlay.UI
 
             if (!started || request == null)
             {
+                RemoveRequest(key);
                 Dispose(request);
                 Finish(key, generation);
                 SafeSink(sink, null, generation);
@@ -211,6 +230,8 @@ namespace FriendOverlay.UI
 
             Complete(key, url, request, generation, sink);
         }
+
+        private static void RemoveRequest(string key) => _requests.Remove(key);
 
         private static void Dispose(UnityWebRequest? request)
         {
@@ -298,6 +319,7 @@ namespace FriendOverlay.UI
                     catch { /* already gone */ }
                 }
 
+                RemoveRequest(key);
                 Dispose(request);
                 Finish(key, generation);
                 if (!delivered)

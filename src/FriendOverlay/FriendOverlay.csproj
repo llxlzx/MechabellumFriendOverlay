@@ -35,6 +35,8 @@
     <Compile Include="..\FriendOverlay.Core\BakeBudget.cs" Link="Core\BakeBudget.cs" />
     <Compile Include="..\FriendOverlay.Core\VisibleRowRange.cs" Link="Core\VisibleRowRange.cs" />
     <Compile Include="..\FriendOverlay.Core\OverlayPerfSettings.cs" Link="Core\OverlayPerfSettings.cs" />
+    <Compile Include="..\FriendOverlay.Core\PortraitBakeKind.cs" Link="Core\PortraitBakeKind.cs" />
+    <Compile Include="..\FriendOverlay.Core\PortraitCaptureAcceptance.cs" Link="Core\PortraitCaptureAcceptance.cs" />
   </ItemGroup>
 
   <ItemGroup>

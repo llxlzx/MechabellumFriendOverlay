@@ -100,4 +100,53 @@ public class PortraitCaptureAcceptanceTests
         Assert.False(PortraitCaptureAcceptance.Evaluate(64, 64, px, PortraitBakeKind.Outline, out var outlineReject));
         Assert.Equal(PortraitCaptureReject.Sparse, outlineReject);
     }
+
+    /// <summary>~1.5% coverage corner ornaments — too thin for Face sparse gate, OK for Outline.</summary>
+    [Fact]
+    public void Thin_corner_frame_fails_Face_sparse_passes_Outline()
+    {
+        var px = Solid(64, 64, 0, 0, 0, 0);
+        void Paint(int x0, int y0)
+        {
+            for (var y = y0; y < y0 + 4; y++)
+            for (var x = x0; x < x0 + 4; x++)
+            {
+                var o = (y * 64 + x) * 4;
+                px[o] = 180;
+                px[o + 1] = 180;
+                px[o + 2] = 220;
+                px[o + 3] = 255;
+            }
+        }
+
+        Paint(0, 0);
+        Paint(60, 0);
+        Paint(0, 60);
+        Paint(60, 60);
+
+        Assert.False(PortraitCaptureAcceptance.Evaluate(64, 64, px, PortraitBakeKind.Face, out var faceReject));
+        Assert.Equal(PortraitCaptureReject.Sparse, faceReject);
+
+        Assert.True(PortraitCaptureAcceptance.Evaluate(64, 64, px, PortraitBakeKind.Outline, out var outlineReject));
+        Assert.Equal(PortraitCaptureReject.None, outlineReject);
+    }
+}
+
+public class SharedImageLoadMissTests
+{
+    [Theory]
+    [InlineData(true, false, false, false)]  // has frames
+    [InlineData(false, true, false, false)] // pending gif settle
+    [InlineData(false, false, true, false)] // budget deferred
+    [InlineData(false, false, false, true)] // real miss
+    public void Counts_soft_miss_only_for_real_failures(
+        bool hasFrames,
+        bool pending,
+        bool budgetDeferred,
+        bool expectCount)
+    {
+        Assert.Equal(
+            expectCount,
+            SharedImageLoadMiss.ShouldCountSoftMiss(hasFrames, pending, budgetDeferred));
+    }
 }

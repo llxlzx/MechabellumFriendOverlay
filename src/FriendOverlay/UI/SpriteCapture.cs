@@ -34,8 +34,12 @@ namespace FriendOverlay.UI
         private static bool _loggedRejectBlack;
         private static int _emptyCaptures;
 
+        /// <summary>True when the last Capture/CaptureRoot returned null because BakeBudget was exhausted.</summary>
+        public static bool LastDeniedByBudget { get; private set; }
+
         public static void Reset()
         {
+            LastDeniedByBudget = false;
             try
             {
                 if (_target != null)
@@ -161,6 +165,7 @@ namespace FriendOverlay.UI
         /// <summary>Renders one sprite via a dedicated Image. Owned texture or null.</summary>
         public static Texture2D? Capture(Sprite? sprite, int size = DefaultSize)
         {
+            LastDeniedByBudget = false;
             if (_rigFailed || _busy || !AvatarCache.IsUsableSprite(sprite))
                 return null;
 
@@ -169,7 +174,10 @@ namespace FriendOverlay.UI
 
             BakeBudget.BeginFrame(Time.frameCount);
             if (!BakeBudget.TryConsume())
+            {
+                LastDeniedByBudget = true;
                 return null;
+            }
 
             _busy = true;
             var prev = RenderTexture.active;
@@ -211,6 +219,7 @@ namespace FriendOverlay.UI
         /// </summary>
         public static Texture2D? CaptureRoot(GameObject? subject, int size = DefaultSize)
         {
+            LastDeniedByBudget = false;
             if (_rigFailed || _busy || subject == null)
                 return null;
 
@@ -219,7 +228,10 @@ namespace FriendOverlay.UI
 
             BakeBudget.BeginFrame(Time.frameCount);
             if (!BakeBudget.TryConsume())
+            {
+                LastDeniedByBudget = true;
                 return null;
+            }
 
             _busy = true;
 
@@ -403,12 +415,12 @@ namespace FriendOverlay.UI
             if (IsBlank(tex))
             {
                 try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-                // Never latch _rigFailed on blank — callers fall back to SpriteBake.
+                // Never latch _rigFailed on blank — callers soft-retry without SpriteBake.
                 if (++_emptyCaptures >= 6 && !_loggedBlank)
                 {
                     _loggedBlank = true;
                     MelonLogger.Warning(
-                        "[FriendOverlay] sprite capture blank (continuing; callers may blit-fallback)");
+                        "[FriendOverlay] sprite capture blank (continuing; callers may soft-retry)");
                 }
 
                 return null;

@@ -66,7 +66,9 @@ namespace FriendOverlay.Core
             }
 
             var coverage = opaque / (float)sampled;
-            if (coverage < 0.05f)
+            // Faces need a solid plate; outlines can be thin corner ornaments (~1–2% coverage).
+            var minCoverage = kind == PortraitBakeKind.Outline ? 0.012f : 0.05f;
+            if (coverage < minCoverage)
             {
                 reject = PortraitCaptureReject.Sparse;
                 return false;

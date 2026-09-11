@@ -49,6 +49,9 @@ namespace FriendOverlay.UI
 
         public static float LastFrameSeconds { get; set; } = GifPlayback.DefaultFrameSeconds;
 
+        /// <summary>True when the last TryBakeFrames missed only because BakeBudget was exhausted.</summary>
+        public static bool LastBudgetDeferred { get; private set; }
+
         public static void Clear()
         {
             foreach (var p in _pending.Values)
@@ -62,6 +65,7 @@ namespace FriendOverlay.UI
             _loggedFail = false;
             _loggedReject = false;
             LastFrameSeconds = GifPlayback.DefaultFrameSeconds;
+            LastBudgetDeferred = false;
         }
 
         public static bool IsPending(string imageRef) =>
@@ -70,6 +74,7 @@ namespace FriendOverlay.UI
         public static PrefabResult TryBakeFrames(GRAvatarManager mgr, string imageRef, out Texture2D[]? frames)
         {
             frames = null;
+            LastBudgetDeferred = false;
             if (string.IsNullOrEmpty(imageRef) || mgr == null)
                 return PrefabResult.NoGif;
 
@@ -342,6 +347,9 @@ namespace FriendOverlay.UI
             var tex = SpriteCapture.CaptureRoot(instance);
             if (IsUsableCapture(tex, kind))
                 return tex;
+
+            if (SpriteCapture.LastDeniedByBudget)
+                LastBudgetDeferred = true;
 
             if (tex != null)
             {

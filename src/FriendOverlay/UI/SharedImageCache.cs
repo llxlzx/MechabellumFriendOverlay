@@ -133,7 +133,13 @@ namespace FriendOverlay.UI
                 {
                     // Prefab GRGif is still filling spriteList — do not burn SoftAttempts.
                     // Pending stays false; NextSoftTry spaces the next LiveGifHost poll.
-                    if (frames == null && LiveGifHost.IsPending(imageRef!))
+                    var pending = frames == null && LiveGifHost.IsPending(imageRef!);
+                    var budgetDeferred = LiveGifHost.LastBudgetDeferred || SpriteCapture.LastDeniedByBudget;
+                    if (frames == null &&
+                        !SharedImageLoadMiss.ShouldCountSoftMiss(
+                            hasFrames: false,
+                            isPending: pending,
+                            budgetDeferred: budgetDeferred))
                     {
                         entry.Pending = false;
                         entry.NextSoftTry = Time.unscaledTime + SoftAttemptSpacing;

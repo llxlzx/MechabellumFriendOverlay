@@ -96,6 +96,13 @@ namespace FriendOverlay.UI
                         done(null);
                         return true;
                     }
+
+                    // Budget deferred: do not fall through to compose (would steal SoftAttempts).
+                    if (LiveGifHost.LastBudgetDeferred)
+                    {
+                        done(null);
+                        return true;
+                    }
                 }
 
                 if (TryPortraitCompose(imageRef, out var composed))

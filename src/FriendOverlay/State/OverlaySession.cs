@@ -120,6 +120,7 @@ namespace FriendOverlay.State
             Data.FaceBlockPolicy.Reset();
             UI.AvatarCache.Clear();
             UI.GameAssets.Reset();
+            FriendOverlay.Core.BakeBudget.Reset();
         }
 
         /// <summary>

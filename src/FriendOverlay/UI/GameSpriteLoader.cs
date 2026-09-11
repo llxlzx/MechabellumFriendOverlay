@@ -5,7 +5,6 @@ using Il2CppGameRiver.Client;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace FriendOverlay.UI
 {
@@ -132,7 +131,6 @@ namespace FriendOverlay.UI
             _loggedLoadSpriteFail = false;
             _loggedPortraitFail = false;
             _loggedOutlineMiss = false;
-            _loggedBlitFallback = false;
             _loggedGifDiag = false;
             _hitLogs = 0;
 
@@ -343,27 +341,8 @@ namespace FriendOverlay.UI
 
                 image.SetPlayerPortrait(string.Empty, outlineKey, avatarKey);
                 var root = outlineKey.Length > 0 ? image.outlineObj : image.avatarObj;
-                texture = CapturePortraitRoot(root);
-                if (AvatarCache.IsUsableTexture(texture))
-                    return true;
-
-                if (texture != null)
-                {
-                    try { UnityEngine.Object.Destroy(texture); } catch { /* ok */ }
-                    texture = null;
-                }
-
-                if (outlineKey.Length > 0)
-                {
-                    image.SetPlayerPortrait(string.Empty, string.Empty, imageRef);
-                    texture = CapturePortraitRoot(image.avatarObj);
-                }
-                else
-                {
-                    image.SetPlayerPortrait(string.Empty, imageRef, string.Empty);
-                    texture = CapturePortraitRoot(image.outlineObj);
-                }
-
+                var kind = outlineKey.Length > 0 ? PortraitBakeKind.Outline : PortraitBakeKind.Face;
+                texture = CapturePortraitRoot(root, kind);
                 if (AvatarCache.IsUsableTexture(texture))
                     return true;
 
@@ -395,16 +374,14 @@ namespace FriendOverlay.UI
 
         private static bool IsOutlineKey(string imageRef) => OfficialImageKeys.IsOutlineKey(imageRef);
 
-        private static bool _loggedBlitFallback;
-
-        private static Texture2D? CapturePortraitRoot(GameObject? root)
+        private static Texture2D? CapturePortraitRoot(GameObject? root, PortraitBakeKind kind)
         {
             if (root == null)
                 return null;
 
             try { root.SetActive(true); } catch { /* ok */ }
             var tex = SpriteCapture.CaptureRoot(root);
-            if (SpriteCapture.IsAcceptable(tex))
+            if (SpriteCapture.IsAcceptable(tex, kind))
                 return tex;
 
             if (tex != null)
@@ -412,114 +389,7 @@ namespace FriendOverlay.UI
                 try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
             }
 
-            var ranked = RankPortraitSprites(root);
-            for (var i = 0; i < ranked.Count; i++)
-            {
-                var sp = ranked[i];
-                tex = SpriteCapture.Capture(sp);
-                if (SpriteCapture.IsAcceptable(tex))
-                {
-                    LogPortraitBlitOnce();
-                    return tex;
-                }
-
-                if (tex != null)
-                {
-                    try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-                }
-
-                tex = SpriteBake.ToTexture(sp);
-                if (SpriteCapture.IsAcceptable(tex))
-                {
-                    LogPortraitBlitOnce();
-                    return tex;
-                }
-
-                if (tex != null)
-                {
-                    try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-                    tex = null;
-                }
-            }
-
             return null;
-        }
-
-        private static void LogPortraitBlitOnce()
-        {
-            if (_loggedBlitFallback)
-                return;
-            _loggedBlitFallback = true;
-            MelonLogger.Msg("[FriendOverlay] blit-fallback portrait via single-sprite");
-        }
-
-        private static List<Sprite> RankPortraitSprites(GameObject root)
-        {
-            var list = new List<(Sprite Sp, float Area)>();
-            try
-            {
-                var images = root.GetComponentsInChildren<Image>(true);
-                if (images == null)
-                    return new List<Sprite>();
-
-                for (var i = 0; i < images.Length; i++)
-                {
-                    var img = images[i];
-                    if (img == null || !img.enabled)
-                        continue;
-                    try
-                    {
-                        if (img.GetComponent<Mask>() != null)
-                            continue;
-                    }
-                    catch { /* ok */ }
-
-                    try
-                    {
-                        if (img.color.a < 0.02f)
-                            continue;
-                    }
-                    catch { /* ok */ }
-
-                    var sp = img.sprite;
-                    if (!AvatarCache.IsUsableSprite(sp))
-                        continue;
-
-                    float area;
-                    try
-                    {
-                        var tr = sp!.textureRect;
-                        if (tr.width < 32f || tr.height < 32f)
-                            continue;
-                        area = tr.width * tr.height;
-                    }
-                    catch { continue; }
-
-                    list.Add((sp!, area));
-                }
-            }
-            catch
-            {
-                return new List<Sprite>();
-            }
-
-            list.Sort((a, b) =>
-            {
-                var aBig = a.Area >= 512f * 512f;
-                var bBig = b.Area >= 512f * 512f;
-                if (aBig != bBig)
-                    return aBig ? 1 : -1;
-                return b.Area.CompareTo(a.Area);
-            });
-
-            var result = new List<Sprite>(list.Count);
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (!result.Contains(list[i].Sp))
-                    result.Add(list[i].Sp);
-            }
-
-            return result;
         }
 
         private static void LogOutlineMissOnce(GRAvatarManager mgr, string imageRef)

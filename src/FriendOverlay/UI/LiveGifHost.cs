@@ -44,7 +44,7 @@ namespace FriendOverlay.UI
         private static bool _logged;
         private static bool _loggedStatic;
         private static bool _loggedFail;
-        private static bool _loggedBlitFallback;
+        private static bool _loggedReject;
         private static GameObject? _sharedRoot;
 
         public static float LastFrameSeconds { get; set; } = GifPlayback.DefaultFrameSeconds;
@@ -60,7 +60,7 @@ namespace FriendOverlay.UI
             _logged = false;
             _loggedStatic = false;
             _loggedFail = false;
-            _loggedBlitFallback = false;
+            _loggedReject = false;
             LastFrameSeconds = GifPlayback.DefaultFrameSeconds;
         }
 
@@ -93,13 +93,14 @@ namespace FriendOverlay.UI
                     instance.SetActive(true);
                     ForceActive(instance.transform);
 
-                    // No GRGif: capture the whole static prefab once this tick (blit fallback OK).
+                    // No GRGif: capture the whole static prefab once this tick (CaptureRoot only).
                     if (instance.GetComponentInChildren<GRGif>(true) == null)
                     {
-                        var staticTex = CaptureWithFallback(instance, null);
+                        var kind = BakeKind(imageRef);
+                        var staticTex = CaptureRootOnly(instance, kind);
                         try { UnityEngine.Object.Destroy(instance); } catch { /* ok */ }
 
-                        if (!IsUsableCapture(staticTex))
+                        if (!IsUsableCapture(staticTex, kind))
                         {
                             if (staticTex != null)
                             {
@@ -134,12 +135,13 @@ namespace FriendOverlay.UI
                     if (pending.Attempts < SettleAttempts)
                         return PrefabResult.Pending;
 
-                    // Timed out — single root capture with blit fallback, then give up GIF.
-                    var fallback = CaptureWithFallback(pending.Instance, null);
+                    // Timed out — single CaptureRoot only, then give up GIF (no SpriteBake).
+                    var kind = BakeKind(imageRef);
+                    var fallback = CaptureRootOnly(pending.Instance, kind);
                     DestroyInstance(pending);
                     _pending.Remove(imageRef);
 
-                    if (IsUsableCapture(fallback))
+                    if (IsUsableCapture(fallback, kind))
                     {
                         frames = new[] { fallback! };
                         return PrefabResult.Ready;
@@ -224,7 +226,8 @@ namespace FriendOverlay.UI
             try { gif.Update(); } catch { /* private Update may throw on some builds */ }
 
             ForceActive(pending.Instance!.transform);
-            var tex = CaptureRootOnly(pending.Instance);
+            var kind = BakeKind(imageRef);
+            var tex = CaptureRootOnly(pending.Instance, kind);
             pending.NextIndex = i + 1;
 
             if (tex != null)
@@ -326,166 +329,40 @@ namespace FriendOverlay.UI
             return null;
         }
 
+        private static PortraitBakeKind BakeKind(string imageRef) =>
+            OfficialImageKeys.IsOutlineKey(imageRef)
+                ? PortraitBakeKind.Outline
+                : PortraitBakeKind.Face;
+
         /// <summary>
-        /// GIF temporal bake: CaptureRoot only. Never blit-crop (avoids atlas garbage).
+        /// GIF / official prefab bake: CaptureRoot only. Never blit-crop (avoids atlas garbage).
         /// </summary>
-        private static Texture2D? CaptureRootOnly(GameObject instance)
+        private static Texture2D? CaptureRootOnly(GameObject instance, PortraitBakeKind kind)
         {
             var tex = SpriteCapture.CaptureRoot(instance);
-            if (SpriteCapture.IsAcceptable(tex))
+            if (IsUsableCapture(tex, kind))
                 return tex;
 
             if (tex != null)
             {
+                LogRejectOnce(kind);
                 try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Prefer CaptureRoot; on blank fall back to single-sprite Capture then SpriteBake.
-        /// Used for static prefabs and settle-timeout single shots only.
-        /// </summary>
-        private static Texture2D? CaptureWithFallback(GameObject instance, Sprite? frameSprite)
+        private static void LogRejectOnce(PortraitBakeKind kind)
         {
-            var tex = SpriteCapture.CaptureRoot(instance);
-            if (SpriteCapture.IsAcceptable(tex))
-                return tex;
-
-            if (tex != null)
-            {
-                try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-            }
-
-            if (AvatarCache.IsUsableSprite(frameSprite) &&
-                TryAcceptSprite(frameSprite, out tex, "ugui-sprite") &&
-                tex != null)
-                return tex;
-
-            BestAcceptableChildSprite(instance, out tex);
-            return tex;
-        }
-
-        private static bool TryAcceptSprite(Sprite? sp, out Texture2D? tex, string via)
-        {
-            tex = null;
-            if (!AvatarCache.IsUsableSprite(sp))
-                return false;
-
-            tex = SpriteCapture.Capture(sp);
-            if (SpriteCapture.IsAcceptable(tex))
-            {
-                LogBlitFallbackOnce(via);
-                return true;
-            }
-
-            if (tex != null)
-            {
-                try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-            }
-
-            tex = SpriteBake.ToTexture(sp);
-            if (SpriteCapture.IsAcceptable(tex))
-            {
-                LogBlitFallbackOnce("blit-crop");
-                return true;
-            }
-
-            if (tex != null)
-            {
-                try { UnityEngine.Object.Destroy(tex); } catch { /* ok */ }
-                tex = null;
-            }
-
-            return false;
-        }
-
-        private static Sprite? BestAcceptableChildSprite(GameObject instance, out Texture2D? baked)
-        {
-            baked = null;
-            var ranked = RankChildSprites(instance);
-            for (var i = 0; i < ranked.Count; i++)
-            {
-                if (TryAcceptSprite(ranked[i], out baked, "ugui-sprite"))
-                    return ranked[i];
-            }
-
-            return null;
-        }
-
-        private static List<Sprite> RankChildSprites(GameObject instance)
-        {
-            var list = new List<(Sprite Sp, float Area)>();
-            try
-            {
-                var images = instance.GetComponentsInChildren<Image>(true);
-                if (images == null)
-                    return new List<Sprite>();
-
-                for (var i = 0; i < images.Length; i++)
-                {
-                    var img = images[i];
-                    if (img == null)
-                        continue;
-                    try
-                    {
-                        if (img.GetComponent<Mask>() != null)
-                            continue;
-                    }
-                    catch { /* ok */ }
-
-                    var sp = img.sprite;
-                    if (!AvatarCache.IsUsableSprite(sp))
-                        continue;
-
-                    float area;
-                    try
-                    {
-                        var tr = sp!.textureRect;
-                        if (tr.width < 32f || tr.height < 32f)
-                            continue;
-                        area = tr.width * tr.height;
-                    }
-                    catch { continue; }
-
-                    list.Add((sp!, area));
-                }
-            }
-            catch
-            {
-                return new List<Sprite>();
-            }
-
-            // Prefer largest under 512², then smaller of oversized atlas tiles.
-            list.Sort((a, b) =>
-            {
-                var aBig = a.Area >= 512f * 512f;
-                var bBig = b.Area >= 512f * 512f;
-                if (aBig != bBig)
-                    return aBig ? 1 : -1;
-                return b.Area.CompareTo(a.Area);
-            });
-
-            var result = new List<Sprite>(list.Count);
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (!result.Contains(list[i].Sp))
-                    result.Add(list[i].Sp);
-            }
-
-            return result;
-        }
-
-        private static void LogBlitFallbackOnce(string via)
-        {
-            if (_loggedBlitFallback)
+            if (_loggedReject)
                 return;
-            _loggedBlitFallback = true;
-            MelonLogger.Msg("[FriendOverlay] blit-fallback via " + via);
+            _loggedReject = true;
+            MelonLogger.Msg(
+                "[FriendOverlay] capture-root rejected kind=" + kind + " (retry without SpriteBake)");
         }
 
-        private static bool IsUsableCapture(Texture2D? tex) => SpriteCapture.IsAcceptable(tex);
+        private static bool IsUsableCapture(Texture2D? tex, PortraitBakeKind kind) =>
+            SpriteCapture.IsAcceptable(tex, kind);
 
         private static void ForceActive(Transform root)
         {

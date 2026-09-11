@@ -83,13 +83,19 @@ namespace FriendOverlay.UI
         }
 
         /// <summary>
-        /// Shared gate for CaptureRoot / ugui-sprite / blit-crop results.
-        /// Rejects empty, perimeter-only wireframes, and near-solid black faces.
+        /// Shared gate for CaptureRoot results. Default kind is Face (rejects hollow/black plates).
+        /// Use the overload with <see cref="PortraitBakeKind.Outline"/> for avatar frames.
         /// </summary>
         public static bool IsAcceptable(Texture2D? tex) =>
-            IsAcceptable(tex, out _);
+            IsAcceptable(tex, PortraitBakeKind.Face, out _);
 
-        public static bool IsAcceptable(Texture2D? tex, out RejectReason reason)
+        public static bool IsAcceptable(Texture2D? tex, out RejectReason reason) =>
+            IsAcceptable(tex, PortraitBakeKind.Face, out reason);
+
+        public static bool IsAcceptable(Texture2D? tex, PortraitBakeKind kind) =>
+            IsAcceptable(tex, kind, out _);
+
+        public static bool IsAcceptable(Texture2D? tex, PortraitBakeKind kind, out RejectReason reason)
         {
             reason = RejectReason.NullOrTiny;
             if (!AvatarCache.IsUsableTexture(tex))
@@ -100,87 +106,55 @@ namespace FriendOverlay.UI
                 var w = tex!.width;
                 var h = tex.height;
                 var px = tex.GetPixels32();
-                if (px == null || px.Length == 0 || w < 2 || h < 2)
-                    return false;
-
-                var step = Math.Max(1, px.Length / 4096);
-                var sampled = 0;
-                var opaque = 0;
-                long lumSum = 0;
-                var centerOpaque = 0;
-                var centerSampled = 0;
-                var x0 = w / 4;
-                var x1 = (3 * w) / 4;
-                var y0 = h / 4;
-                var y1 = (3 * h) / 4;
-
-                for (var i = 0; i < px.Length; i += step)
+                if (px == null || px.Length == 0)
                 {
-                    sampled++;
+                    reason = RejectReason.NullOrTiny;
+                    return false;
+                }
+
+                var rgba = new byte[px.Length * 4];
+                for (var i = 0; i < px.Length; i++)
+                {
                     var p = px[i];
-                    var x = i % w;
-                    var y = i / w;
-                    var inCenter = x >= x0 && x < x1 && y >= y0 && y < y1;
-                    if (inCenter)
-                        centerSampled++;
-
-                    if (p.a < 16)
-                        continue;
-
-                    opaque++;
-                    lumSum += (p.r + p.g + p.b) / 3;
-                    if (inCenter)
-                        centerOpaque++;
+                    var o = i * 4;
+                    rgba[o] = p.r;
+                    rgba[o + 1] = p.g;
+                    rgba[o + 2] = p.b;
+                    rgba[o + 3] = p.a;
                 }
 
-                if (sampled == 0)
-                {
-                    reason = RejectReason.Sparse;
-                    return false;
-                }
-
-                var coverage = opaque / (float)sampled;
-                if (coverage < 0.05f)
-                {
-                    reason = RejectReason.Sparse;
-                    return false;
-                }
-
-                if (centerSampled > 0 && centerOpaque / (float)centerSampled < 0.02f)
-                {
-                    reason = RejectReason.Wireframe;
-                    if (!_loggedRejectWire)
-                    {
-                        _loggedRejectWire = true;
-                        MelonLogger.Msg("[FriendOverlay] reject-wireframe (empty center)");
-                    }
-
-                    return false;
-                }
-
-                if (opaque > 0)
-                {
-                    var avgLum = lumSum / (double)opaque;
-                    if (avgLum < 18.0)
-                    {
-                        reason = RejectReason.Black;
-                        if (!_loggedRejectBlack)
-                        {
-                            _loggedRejectBlack = true;
-                            MelonLogger.Msg("[FriendOverlay] reject-black (near-solid dark)");
-                        }
-
-                        return false;
-                    }
-                }
-
-                reason = RejectReason.None;
-                return true;
+                var ok = PortraitCaptureAcceptance.Evaluate(w, h, rgba, kind, out var coreReject);
+                reason = (RejectReason)(int)coreReject;
+                if (!ok)
+                    LogRejectOnce(kind, reason);
+                return ok;
             }
             catch
             {
                 reason = RejectReason.Sparse;
                 return false;
+            }
+        }
+
+        private static void LogRejectOnce(PortraitBakeKind kind, RejectReason reason)
+        {
+            if (reason == RejectReason.Wireframe)
+            {
+                if (_loggedRejectWire)
+                    return;
+                _loggedRejectWire = true;
+                MelonLogger.Msg(
+                    "[FriendOverlay] reject-wireframe kind=" + kind + " (empty center)");
+                return;
+            }
+
+            if (reason == RejectReason.Black)
+            {
+                if (_loggedRejectBlack)
+                    return;
+                _loggedRejectBlack = true;
+                MelonLogger.Msg(
+                    "[FriendOverlay] reject-black kind=" + kind + " (near-solid dark)");
             }
         }
 
@@ -279,6 +253,7 @@ namespace FriendOverlay.UI
                 FitSubject(subject);
                 PrepareVisibility(subject, canvasRestore, groupRestore);
                 ForceActive(subject.transform);
+                Canvas.ForceUpdateCanvases();
 
                 return RenderReadback(size, "capture-root:" + SafeGoName(subject), ref _loggedRootOk);
             }
@@ -464,6 +439,8 @@ namespace FriendOverlay.UI
                 rt.anchoredPosition = Vector2.zero;
                 rt.localRotation = Quaternion.identity;
 
+                Canvas.ForceUpdateCanvases();
+
                 var w = Mathf.Abs(rt.rect.width);
                 var h = Mathf.Abs(rt.rect.height);
                 if (w < 2f || h < 2f)
@@ -472,8 +449,15 @@ namespace FriendOverlay.UI
                     h = Mathf.Max(2f, Mathf.Abs(rt.sizeDelta.y));
                 }
 
-                if (w < 2f) w = _size;
-                if (h < 2f) h = _size;
+                if (w < 2f || h < 2f)
+                {
+                    rt.sizeDelta = new Vector2(DefaultSize, DefaultSize);
+                    Canvas.ForceUpdateCanvases();
+                    w = Mathf.Abs(rt.rect.width);
+                    h = Mathf.Abs(rt.rect.height);
+                    if (w < 2f) w = DefaultSize;
+                    if (h < 2f) h = DefaultSize;
+                }
 
                 var scale = Mathf.Min(_size / w, _size / h);
                 // Prefer slightly smaller than fill so ornaments aren't clipped.

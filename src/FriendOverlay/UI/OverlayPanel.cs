@@ -68,6 +68,8 @@ namespace FriendOverlay.UI
         private static readonly InviteCooldown _inviteCooldown = new InviteCooldown(5.0);
         private static bool _inRoom;
         private static Rect _tabStrip;
+        private static readonly HashSet<ulong> _avatarPriorityIds = new HashSet<ulong>();
+        private static int _avatarPriorityFrame;
 
         public static FriendListTab Tab { get; private set; } = FriendListTab.Following;
 
@@ -180,7 +182,17 @@ namespace FriendOverlay.UI
             _search.Blur();
             _visibleSince = -1f;
             _wasVisible = false;
+            _avatarPriorityIds.Clear();
             InvalidateView();
+        }
+
+        public static bool IsAvatarPriority(ulong userId)
+        {
+            if (_avatarPriorityIds.Count == 0)
+                return true;
+            if (Time.frameCount - _avatarPriorityFrame > 2)
+                return true;
+            return _avatarPriorityIds.Contains(userId);
         }
 
         public static void Draw()
@@ -504,6 +516,25 @@ namespace FriendOverlay.UI
                 Gfx.Text(new Rect(inner.x, inner.y + Theme.S(24f), inner.width, Theme.S(28f)), msg, Theme.TextMuted, Theme.Stat);
                 return;
             }
+
+            var offsets = new float[_items.Count];
+            var heights = new float[_items.Count];
+            for (var i = 0; i < _items.Count; i++)
+            {
+                offsets[i] = _items[i].Offset;
+                heights[i] = _items[i].Height;
+            }
+
+            var (a, b) = VisibleRowRange.Compute(scrollY, inner.height, offsets, heights, marginItems: 2);
+            _avatarPriorityIds.Clear();
+            for (var i = a; i < b; i++)
+            {
+                var row = _items[i].Row;
+                if (row != null)
+                    _avatarPriorityIds.Add(row.UserId);
+            }
+
+            _avatarPriorityFrame = Time.frameCount;
 
             var menuOwnerVisible = false;
 

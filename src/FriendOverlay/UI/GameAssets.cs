@@ -86,9 +86,55 @@ namespace FriendOverlay.UI
             for (var i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
+                var priority = ImguiFriendOverlay.IsAvatarPriority(row.UserId);
 
-                if (!string.IsNullOrEmpty(row.FrameRef) && SharedImageCache.Request(row.FrameRef))
+                if (!string.IsNullOrEmpty(row.FrameRef) && SharedImageCache.Get(row.FrameRef) != null)
                     frames++;
+                else if (priority && !string.IsNullOrEmpty(row.FrameRef))
+                    SharedImageCache.Request(row.FrameRef);
+
+                if (!priority)
+                {
+                    switch (row.Portrait)
+                    {
+                        case Core.PortraitKind.Letter:
+                            letters++;
+                            break;
+
+                        case Core.PortraitKind.Blocked:
+                            blocked++;
+                            if (SharedImageCache.Get(row.PortraitRef) != null)
+                                images++;
+                            else
+                                letters++;
+                            break;
+
+                        case Core.PortraitKind.Official:
+                            if (SharedImageCache.Get(row.PortraitRef) != null)
+                                images++;
+                            else
+                                letters++;
+                            break;
+
+                        default:
+                            if (AvatarCache.IsBlocked(row.UserId))
+                            {
+                                letters++;
+                            }
+                            else if (!AvatarCache.NeedsImage(row.UserId))
+                            {
+                                images++;
+                            }
+                            else
+                            {
+                                letters++;
+                            }
+
+                            break;
+                    }
+
+                    continue;
+                }
 
                 switch (row.Portrait)
                 {

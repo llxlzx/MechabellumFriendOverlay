@@ -242,47 +242,57 @@ namespace FriendOverlay.UI
         /// <summary>
         /// Hands the reference to the game's keyed avatar registry (or LoadSprite for real URLs).
         /// Returns false when the registry is not ready yet — the caller must retry, not Fail.
+        /// Official keys are delivered as owned <see cref="Texture2D"/> arrays (caller destroys).
         /// </summary>
-        public static bool TryStartGameLoad(string imageRef, Action<Sprite?> done)
+        public static bool TryStartGameLoad(string imageRef, Action<Texture2D[]?> done)
         {
             var sm = GetSpriteManager();
             if (IsDownloadable(imageRef) && sm == null)
                 return false;
 
-            var defaultId = 0;
-            if (sm != null)
+            return GameSpriteLoader.TryLoad(imageRef, sm, frames =>
             {
-                try
+                if (frames != null && frames.Length > 0)
                 {
-                    var fallback = sm.defaultSprite;
-                    if (fallback != null)
-                        defaultId = fallback.GetInstanceID();
-                }
-                catch
-                {
-                    // without the placeholder id we can only trust IsUsableSprite
-                }
-            }
+                    var any = false;
+                    for (var i = 0; i < frames.Length; i++)
+                    {
+                        if (AvatarCache.IsUsableTexture(frames[i]))
+                        {
+                            any = true;
+                            break;
+                        }
+                    }
 
-            var placeholderId = defaultId;
-            return GameSpriteLoader.TryLoad(imageRef, sm, sprite =>
-            {
-                var usable = placeholderId == 0
-                    ? AvatarCache.IsUsableSprite(sprite)
-                    : IsUsable(sprite, placeholderId);
-
-                if (usable)
-                {
-                    _localMiss.Remove(imageRef);
-                    _misses.Remove(imageRef);
-                    LogHit("game avatar loaded: " + imageRef);
-                }
-                else
-                {
-                    LogMiss("game avatar load failed: " + imageRef);
+                    if (any)
+                    {
+                        _localMiss.Remove(imageRef);
+                        _misses.Remove(imageRef);
+                        LogHit("game avatar loaded: " + imageRef + " frames=" + frames.Length);
+                        done(frames);
+                        return;
+                    }
                 }
 
-                done(usable ? sprite : null);
+                if (frames != null)
+                {
+                    for (var i = 0; i < frames.Length; i++)
+                    {
+                        if (frames[i] == null)
+                            continue;
+                        try { UnityEngine.Object.Destroy(frames[i]); } catch { /* ok */ }
+                    }
+                }
+
+                // GRGif settle window: not a miss — SharedImageCache polls again via IsPending.
+                if (LiveGifHost.IsPending(imageRef))
+                {
+                    done(null);
+                    return;
+                }
+
+                LogMiss("game avatar load failed: " + imageRef);
+                done(null);
             });
         }
 

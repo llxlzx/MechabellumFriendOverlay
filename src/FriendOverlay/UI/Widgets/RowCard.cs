@@ -367,15 +367,12 @@ namespace FriendOverlay.UI.Widgets
                 else if (row.Portrait == PortraitKind.Official || row.Portrait == PortraitKind.Blocked)
                 {
                     var shared = SharedImageCache.Get(row.PortraitRef);
-                    if (shared != null)
-                    {
-                        texture = AvatarCache.IsUsableTexture(shared.Texture) ? shared.Texture : null;
-                        sprite = texture == null && AvatarCache.IsUsableSprite(shared.Sprite) ? shared.Sprite : null;
-                    }
+                    texture = SharedImageCache.CurrentTexture(shared);
+                    // Official atlas sprites are never drawn via Gfx.Sprite (collage risk).
                 }
             }
 
-            var hasImage = texture != null || sprite != null;
+            var hasImage = texture != null;
 
             // Letter first, image on top. An opaque avatar hides it; a fully transparent or
             // zero-pixel image leaves it showing. Dimension checks cannot tell those apart, and a
@@ -388,7 +385,8 @@ namespace FriendOverlay.UI.Widgets
             var inner = new Rect(r.x + 1f, r.y + 1f, r.width - 2f, r.height - 2f);
             if (texture != null)
                 Gfx.Texture(inner, texture, Color.white);
-            else if (sprite != null)
+            // Official atlas sprites must not use Gfx.Sprite — IMGUI UVs show multi-tile collages.
+            else if (sprite != null && row.Portrait == PortraitKind.Photo)
                 Gfx.Sprite(inner, sprite, Color.white);
 
             Gfx.Border(r, statusColor);
@@ -397,10 +395,18 @@ namespace FriendOverlay.UI.Widgets
             if (!ForceLetters)
                 DrawFrame(r, row.FrameRef);
 
-            var badge = Theme.S(12f);
+            var badge = Theme.S(14f);
             var badgeR = new Rect(r.xMax - badge, r.yMax - badge, badge, badge);
-            Gfx.Fill(badgeR, Theme.PlatformColor(row.Platform));
-            Gfx.Border(badgeR, Theme.Bg0);
+            var platformTex = PlatformIcons.Get(row.Platform);
+            if (platformTex != null)
+            {
+                Gfx.Texture(badgeR, platformTex, Color.white);
+            }
+            else if (!(row.Platform == 1 && PlatformIcons.IgnoreSteamIcon()))
+            {
+                Gfx.Fill(badgeR, Theme.PlatformColor(row.Platform));
+                Gfx.Border(badgeR, Theme.Bg0);
+            }
         }
 
         private static void DrawFrame(Rect r, string frameRef)
@@ -411,10 +417,10 @@ namespace FriendOverlay.UI.Widgets
 
             var grow = Theme.S(4f);
             var fr = new Rect(r.x - grow, r.y - grow, r.width + grow * 2f, r.height + grow * 2f);
-            if (AvatarCache.IsUsableTexture(frame.Texture))
-                Gfx.Texture(fr, frame.Texture, Color.white);
-            else
-                Gfx.Sprite(fr, frame.Sprite, Color.white);
+            var texture = SharedImageCache.CurrentTexture(frame);
+            if (texture != null)
+                Gfx.Texture(fr, texture, Color.white);
+            // No Gfx.Sprite fallback for frames — atlas sprites collage under IMGUI.
         }
 
         private static void DrawStats(Rect r, FriendRowVm row)

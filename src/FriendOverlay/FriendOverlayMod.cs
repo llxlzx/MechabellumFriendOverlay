@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.8", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.22", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -19,6 +19,7 @@ namespace FriendOverlay
         private MelonPreferences_Entry<int>? _prefSort;
         private MelonPreferences_Entry<int>? _prefHotkey;
         private MelonPreferences_Entry<bool>? _prefAnimations;
+        private MelonPreferences_Entry<bool>? _prefAnimatedOfficial;
         private MelonPreferences_Entry<float>? _prefUiScale;
         private MelonPreferences_Entry<bool>? _prefUseGameFont;
         private MelonPreferences_Entry<bool>? _prefTransparentNative;
@@ -106,6 +107,7 @@ namespace FriendOverlay
             _prefSort = _prefs.CreateEntry("SortKey", (int)FriendSortKey.Default, "Sort key");
             _prefHotkey = _prefs.CreateEntry("ToggleHotkey", (int)KeyCode.F8, "Toggle overlay/native hotkey");
             _prefAnimations = _prefs.CreateEntry("Animations", true, "Fade, pulse and hover animations");
+            _prefAnimatedOfficial = _prefs.CreateEntry("AnimatedOfficialAvatars", false, "Bake animated official avatar GIFs (uses more memory)");
             _prefUiScale = _prefs.CreateEntry("UiScale", 0f, "UI scale (0 = auto from screen height)");
             _prefUseGameFont = _prefs.CreateEntry("UseGameFont", false, "Borrow the in-game font instead of the default GUI font");
             _prefTransparentNative = _prefs.CreateEntry("TransparentNativePanel", true, "Hide the native panel via CanvasGroup instead of deactivating it");
@@ -133,6 +135,7 @@ namespace FriendOverlay
             Anim.Enabled = _prefAnimations.Value;
             Theme.UserScale = _prefUiScale.Value;
             GameAssets.UseGameFont = _prefUseGameFont.Value;
+            OverlayPerfSettings.AnimatedOfficialAvatars = _prefAnimatedOfficial.Value;
 
             if (_prefWinW.Value > 1f && _prefWinH.Value > 1f)
             {
@@ -157,6 +160,7 @@ namespace FriendOverlay
             _prefCollapseOffline!.Value = ImguiFriendOverlay.CollapsedOffline;
             _prefCollapsePinned!.Value = ImguiFriendOverlay.CollapsedPinned;
             _prefPinned!.Value = PinStore.Csv;
+            _prefAnimatedOfficial!.Value = OverlayPerfSettings.AnimatedOfficialAvatars;
 
             var rect = ImguiFriendOverlay.WindowRect;
             _prefWinX!.Value = rect.x;

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -7,7 +7,7 @@
     <AssemblyName>FriendOverlay</AssemblyName>
     <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
          de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
-    <Version>0.3.8</Version>
+    <Version>0.3.22</Version>
     <RootNamespace>FriendOverlay</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -30,8 +30,11 @@
     <Compile Include="..\FriendOverlay.Core\PinnedIds.cs" Link="Core\PinnedIds.cs" />
     <Compile Include="..\FriendOverlay.Core\PortraitPlan.cs" Link="Core\PortraitPlan.cs" />
     <Compile Include="..\FriendOverlay.Core\Presence.cs" Link="Core\Presence.cs" />
+    <Compile Include="..\FriendOverlay.Core\GifPlayback.cs" Link="Core\GifPlayback.cs" />
+    <Compile Include="..\FriendOverlay.Core\OfficialImageKeys.cs" Link="Core\OfficialImageKeys.cs" />
     <Compile Include="..\FriendOverlay.Core\BakeBudget.cs" Link="Core\BakeBudget.cs" />
     <Compile Include="..\FriendOverlay.Core\VisibleRowRange.cs" Link="Core\VisibleRowRange.cs" />
+    <Compile Include="..\FriendOverlay.Core\OverlayPerfSettings.cs" Link="Core\OverlayPerfSettings.cs" />
   </ItemGroup>
 
   <ItemGroup>

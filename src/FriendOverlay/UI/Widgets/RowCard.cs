@@ -15,6 +15,7 @@ namespace FriendOverlay.UI.Widgets
         Invite = 7,
         TogglePin = 8,
         FollowBack = 9,
+        ToggleBeaconWhitelist = 10,
     }
 
     public enum FriendListTab
@@ -34,6 +35,8 @@ namespace FriendOverlay.UI.Widgets
         public bool InvitePending;
         public bool IsPinned;
         public bool PinFull;
+        public bool IsBeaconWhitelisted;
+        public bool BeaconWhitelistFull;
     }
 
     public static class RowCard
@@ -58,7 +61,7 @@ namespace FriendOverlay.UI.Widgets
         private static float FollowBackWidth => Theme.S(72f);
 
         private static int MenuItemCount(FriendRowVm row, RowContext ctx) =>
-            ctx.Tab == FriendListTab.Followers ? (row.IsMutual ? 2 : 1) : 3;
+            ctx.Tab == FriendListTab.Followers ? (row.IsMutual ? 3 : 2) : 4;
 
         /// <summary>Menu height depends on which items the row actually offers.</summary>
         public static float MenuHeightFor(FriendRowVm row, RowContext ctx) =>
@@ -195,6 +198,17 @@ namespace FriendOverlay.UI.Widgets
                         : "置顶";
                 if (MenuItem(item, pinLabel, Theme.TextMain, ctx.IsPinned || !ctx.PinFull))
                     return RowAction.TogglePin;
+                item.y += itemH;
+            }
+
+            {
+                var wlLabel = ctx.IsBeaconWhitelisted
+                    ? "移出信标白名单"
+                    : ctx.BeaconWhitelistFull
+                        ? "信标白名单（已满 " + Core.PinnedIds.Max + "）"
+                        : "加入信标白名单";
+                if (MenuItem(item, wlLabel, Theme.TextMain, ctx.IsBeaconWhitelisted || !ctx.BeaconWhitelistFull))
+                    return RowAction.ToggleBeaconWhitelist;
                 item.y += itemH;
             }
 

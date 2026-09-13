@@ -15,9 +15,10 @@ namespace FriendOverlay.Data
                 (int)EPlayerState.Battle2V2 => "2V2对战",
                 (int)EPlayerState.BattleSurvive => "生存战",
                 (int)EPlayerState.BattleSurvive2V2 => "生存2V2",
-                (int)EPlayerState.BattleChaosFaction => "混乱阵营",
-                (int)EPlayerState.BattleDimensionalRift => "次元裂隙",
-                (int)EPlayerState.BattleDimensionalRift2 => "次元裂隙2",
+                // Native invite button / CreateRoom path: BtnChaosFactionOnClicked → VS_4_Scuffle.
+                (int)EPlayerState.BattleChaosFaction => "4人混战",
+                (int)EPlayerState.BattleDimensionalRift => "时空裂隙",
+                (int)EPlayerState.BattleDimensionalRift2 => "时空裂隙2",
                 (int)EPlayerState.BattleLevel => "关卡",
                 (int)EPlayerState.BattleGuider => "指挥学院",
                 (int)EPlayerState.MultiBattleWatch => "观战中",
@@ -49,7 +50,6 @@ namespace FriendOverlay.Data
                 (int)EPlayerState.BattleLevel => FriendStatusKind.Pve,
                 (int)EPlayerState.BattleDimensionalRift => FriendStatusKind.Pve,
                 (int)EPlayerState.BattleDimensionalRift2 => FriendStatusKind.Pve,
-                (int)EPlayerState.BattleChaosFaction => FriendStatusKind.Pve,
                 (int)EPlayerState.MultiBattleWatch => FriendStatusKind.Pve,
                 _ => FriendStatusKind.Battle,
             };

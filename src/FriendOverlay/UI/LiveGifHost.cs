@@ -97,6 +97,9 @@ namespace FriendOverlay.UI
                     instance.name = "Pending_" + imageRef;
                     instance.SetActive(true);
                     ForceActive(instance.transform);
+                    // Prefabs often nest overrideSorting canvases that ignore the host
+                    // CanvasGroup — zero their own groups so they cannot paint the lobby.
+                    HideStagingDraw(instance);
 
                     // No GRGif: capture the whole static prefab once this tick (CaptureRoot only).
                     if (instance.GetComponentInChildren<GRGif>(true) == null)
@@ -383,18 +386,70 @@ namespace FriendOverlay.UI
             catch { /* ok */ }
         }
 
+        /// <summary>
+        /// Keep bake instances from painting ScreenSpaceOverlay while GRGif settles.
+        /// CaptureRoot temporarily forces child CanvasGroup alpha to 1 for the RT pass.
+        /// </summary>
+        private static void HideStagingDraw(GameObject instance)
+        {
+            try
+            {
+                var rootGroup = instance.GetComponent<CanvasGroup>();
+                if (rootGroup == null)
+                    rootGroup = instance.AddComponent<CanvasGroup>();
+                rootGroup.alpha = 0f;
+                rootGroup.blocksRaycasts = false;
+                rootGroup.interactable = false;
+
+                var canvases = instance.GetComponentsInChildren<Canvas>(true);
+                if (canvases == null)
+                    return;
+
+                for (var i = 0; i < canvases.Length; i++)
+                {
+                    var c = canvases[i];
+                    if (c == null)
+                        continue;
+
+                    var g = c.GetComponent<CanvasGroup>();
+                    if (g == null)
+                        g = c.gameObject.AddComponent<CanvasGroup>();
+                    g.alpha = 0f;
+                    g.blocksRaycasts = false;
+                    g.interactable = false;
+                }
+            }
+            catch { /* ok */ }
+        }
+
+        private static void ParkHostOffscreen(GameObject host)
+        {
+            try
+            {
+                var group = host.GetComponent<CanvasGroup>();
+                if (group != null)
+                {
+                    // alpha=0 hides ScreenSpaceOverlay paint. GRGif still advances via
+                    // explicit Update() during temporal bake; CanvasGroup does not mute that.
+                    group.alpha = 0f;
+                    group.blocksRaycasts = false;
+                    group.interactable = false;
+                }
+
+                var rt = host.GetComponent<RectTransform>();
+                if (rt != null)
+                    rt.anchoredPosition = new Vector2(-4000f, -4000f);
+                else
+                    host.transform.position = new Vector3(-5000f, -5000f, 0f);
+            }
+            catch { /* ok */ }
+        }
+
         private static GameObject? EnsureRoot()
         {
             if (_sharedRoot != null)
             {
-                try
-                {
-                    var existing = _sharedRoot.GetComponent<CanvasGroup>();
-                    if (existing != null)
-                        existing.alpha = 1f;
-                }
-                catch { /* ok */ }
-
+                ParkHostOffscreen(_sharedRoot);
                 return _sharedRoot;
             }
 
@@ -405,12 +460,8 @@ namespace FriendOverlay.UI
                 var canvas = host.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = -32760;
-                var group = host.AddComponent<CanvasGroup>();
-                // alpha=1 so GRGif.Update / quality materials keep advancing while offscreen.
-                group.alpha = 1f;
-                group.blocksRaycasts = false;
-                group.interactable = false;
-                host.transform.position = new Vector3(-5000f, -5000f, 0f);
+                host.AddComponent<CanvasGroup>();
+                ParkHostOffscreen(host);
                 _sharedRoot = host;
                 return _sharedRoot;
             }

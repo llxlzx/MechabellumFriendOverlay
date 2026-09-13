@@ -278,16 +278,50 @@ namespace FriendOverlay.UI
                 e.Use();
         }
 
+        /// <summary>IMGUI chip over the native friend chrome; also the uGUI shield footprint.</summary>
+        private static Rect NativeToggleRect() =>
+            new Rect(Theme.S(16f), Theme.S(16f), Theme.S(180f), Theme.S(38f));
+
+        private static int _nativeChipClickFrame = -1;
+
         private static void DrawNativeToggle()
         {
-            var r = new Rect(Theme.S(16f), Theme.S(16f), Theme.S(180f), Theme.S(38f));
-            var hovered = Gfx.Hover(r);
+            var r = NativeToggleRect();
+
+            // Native mode destroys the overlay-sized shield; without a chip-sized one the same
+            // click reaches the hex buttons under the chip. The shield owns EventSystem hits, so
+            // GUI.Button often never sees MouseUp — drive the toggle from screen mouse instead.
+            InputShield.Ensure();
+            if (InputShield.Active)
+                InputShield.SyncRect(r);
+
+            var hovered = Gfx.Hover(r) || NativeChipPointerIn(r);
             var cut = Theme.S(6f);
             Gfx.Chamfer(r, hovered ? Theme.ChipHover : Theme.TitleBar, cut);
             Gfx.ChamferBorder(r, hovered ? Theme.Accent : Theme.Line, cut);
             Gfx.Text(r, "打开叠加面板  ·  " + HotkeyName, Theme.TextHi, Theme.Button);
-            if (Gfx.Hit(r))
+
+            if (NativeChipClicked(r))
                 OverlaySession.ToggleMode();
+        }
+
+        private static bool NativeChipPointerIn(Rect r)
+        {
+            var gui = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            return r.Contains(gui);
+        }
+
+        private static bool NativeChipClicked(Rect r)
+        {
+            if (!Input.GetMouseButtonUp(0) || !NativeChipPointerIn(r))
+                return false;
+
+            // OnGUI runs several times per frame; GetMouseButtonUp stays true for all of them.
+            if (_nativeChipClickFrame == Time.frameCount)
+                return false;
+
+            _nativeChipClickFrame = Time.frameCount;
+            return true;
         }
 
         private static void DrawWindow(int id)
@@ -679,6 +713,8 @@ namespace FriendOverlay.UI
             InvitePending = Actions.InviteFlow.PendingUserId == row.UserId,
             IsPinned = Tab == FriendListTab.Following && PinStore.Contains(row.UserId),
             PinFull = PinStore.IsFull,
+            IsBeaconWhitelisted = BeaconWhitelistStore.Contains(row.UserId),
+            BeaconWhitelistFull = BeaconWhitelistStore.IsFull,
         };
 
         private static void SwitchTab(FriendListTab tab)
@@ -764,6 +800,25 @@ namespace FriendOverlay.UI
                     _menuRowId = 0;
                     if (PinStore.Toggle(row.UserId))
                         InvalidateView();
+                    break;
+                case RowAction.ToggleBeaconWhitelist:
+                    _menuRowId = 0;
+                    if (BeaconWhitelistStore.Contains(row.UserId))
+                    {
+                        if (BeaconWhitelistStore.Toggle(row.UserId))
+                            InvalidateView();
+                    }
+                    else
+                    {
+                        ImguiConfirm.Ask(
+                            "加入信标白名单",
+                            "确认将 " + row.Name + " 加入 TeamBeacons 白名单？\n仅在你确认对方已安装同款 mod 时使用。\n误加可能导致对方聊天出现 1 条探针消息。",
+                            () =>
+                            {
+                                if (BeaconWhitelistStore.Toggle(row.UserId))
+                                    InvalidateView();
+                            });
+                    }
                     break;
                 case RowAction.Unfollow:
                     _menuRowId = 0;

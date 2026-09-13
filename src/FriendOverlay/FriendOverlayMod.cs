@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.25", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.29", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -28,6 +28,7 @@ namespace FriendOverlay
         private MelonPreferences_Entry<bool>? _prefCollapseOffline;
         private MelonPreferences_Entry<bool>? _prefCollapsePinned;
         private MelonPreferences_Entry<string>? _prefPinned;
+        private MelonPreferences_Entry<string>? _prefBeaconWhitelist;
         private MelonPreferences_Entry<float>? _prefWinX;
         private MelonPreferences_Entry<float>? _prefWinY;
         private MelonPreferences_Entry<float>? _prefWinW;
@@ -116,6 +117,10 @@ namespace FriendOverlay
             _prefCollapseOffline = _prefs.CreateEntry("CollapseOffline", false, "Collapse the offline section");
             _prefCollapsePinned = _prefs.CreateEntry("CollapsePinned", false, "Collapse the pinned section");
             _prefPinned = _prefs.CreateEntry("PinnedUserIds", string.Empty, "Comma separated pinned user ids (max 20, local only)");
+            _prefBeaconWhitelist = _prefs.CreateEntry(
+                "BeaconWhitelistUserIds",
+                string.Empty,
+                "TeamBeacons soft-dep whitelist CSV user ids (max 20); read by TacticalToolbar");
             _prefWinX = _prefs.CreateEntry("WindowX", 0f, "Overlay window X");
             _prefWinY = _prefs.CreateEntry("WindowY", 0f, "Overlay window Y");
             _prefWinW = _prefs.CreateEntry("WindowW", 0f, "Overlay window width");
@@ -131,6 +136,7 @@ namespace FriendOverlay
             ImguiFriendOverlay.CollapsedOffline = _prefCollapseOffline.Value;
             ImguiFriendOverlay.CollapsedPinned = _prefCollapsePinned.Value;
             PinStore.Load(_prefPinned.Value);
+            BeaconWhitelistStore.Load(_prefBeaconWhitelist.Value);
 
             Anim.Enabled = _prefAnimations.Value;
             Theme.UserScale = _prefUiScale.Value;
@@ -160,6 +166,7 @@ namespace FriendOverlay
             _prefCollapseOffline!.Value = ImguiFriendOverlay.CollapsedOffline;
             _prefCollapsePinned!.Value = ImguiFriendOverlay.CollapsedPinned;
             _prefPinned!.Value = PinStore.Csv;
+            _prefBeaconWhitelist!.Value = BeaconWhitelistStore.Csv;
             _prefAnimatedOfficial!.Value = OverlayPerfSettings.AnimatedOfficialAvatars;
 
             var rect = ImguiFriendOverlay.WindowRect;

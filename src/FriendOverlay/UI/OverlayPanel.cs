@@ -713,8 +713,6 @@ namespace FriendOverlay.UI
             InvitePending = Actions.InviteFlow.PendingUserId == row.UserId,
             IsPinned = Tab == FriendListTab.Following && PinStore.Contains(row.UserId),
             PinFull = PinStore.IsFull,
-            IsBeaconWhitelisted = BeaconWhitelistStore.Contains(row.UserId),
-            BeaconWhitelistFull = BeaconWhitelistStore.IsFull,
         };
 
         private static void SwitchTab(FriendListTab tab)
@@ -800,25 +798,6 @@ namespace FriendOverlay.UI
                     _menuRowId = 0;
                     if (PinStore.Toggle(row.UserId))
                         InvalidateView();
-                    break;
-                case RowAction.ToggleBeaconWhitelist:
-                    _menuRowId = 0;
-                    if (BeaconWhitelistStore.Contains(row.UserId))
-                    {
-                        if (BeaconWhitelistStore.Toggle(row.UserId))
-                            InvalidateView();
-                    }
-                    else
-                    {
-                        ImguiConfirm.Ask(
-                            "加入信标白名单",
-                            "确认将 " + row.Name + " 加入 TeamBeacons 白名单？\n仅在你确认对方已安装同款 mod 时使用。\n误加可能导致对方聊天出现 1 条探针消息。",
-                            () =>
-                            {
-                                if (BeaconWhitelistStore.Toggle(row.UserId))
-                                    InvalidateView();
-                            });
-                    }
                     break;
                 case RowAction.Unfollow:
                     _menuRowId = 0;

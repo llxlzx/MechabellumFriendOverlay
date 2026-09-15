@@ -350,6 +350,11 @@ namespace FriendOverlay.UI
                 var root = outlineKey.Length > 0 ? image.outlineObj : image.avatarObj;
                 var kind = outlineKey.Length > 0 ? PortraitBakeKind.Outline : PortraitBakeKind.Face;
                 texture = CapturePortraitRoot(root, kind);
+
+                // Clear the staged portrait so SetPlayerPortrait clones cannot linger on the host.
+                try { image.SetPlayerPortrait(string.Empty, string.Empty, string.Empty); } catch { /* ok */ }
+                ParkLoaderHost();
+
                 if (AvatarCache.IsUsableTexture(texture))
                     return true;
 
@@ -501,13 +506,8 @@ namespace FriendOverlay.UI
                 host = new GameObject("FriendOverlaySpriteLoader");
                 UnityEngine.Object.DontDestroyOnLoad(host);
 
-                var canvas = host.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = -32760;
-                var group = host.AddComponent<CanvasGroup>();
-                group.alpha = 0f;
-                group.blocksRaycasts = false;
-                group.interactable = false;
+                host.AddComponent<Canvas>();
+                host.AddComponent<CanvasGroup>();
 
                 var child = new GameObject("Probe");
                 child.transform.SetParent(host.transform, false);
@@ -516,10 +516,11 @@ namespace FriendOverlay.UI
                 image.color = new Color(0f, 0f, 0f, 0f);
                 image.raycastTarget = false;
                 image.rectTransform.sizeDelta = new Vector2(1f, 1f);
-                image.rectTransform.anchoredPosition = new Vector2(-4000f, -4000f);
+                image.rectTransform.anchoredPosition = Vector2.zero;
 
                 _host = host;
                 _image = image;
+                ParkLoaderHost();
                 return _image;
             }
             catch (Exception ex)
@@ -539,6 +540,44 @@ namespace FriendOverlay.UI
 
                 return null;
             }
+        }
+
+        private static void ParkLoaderHost()
+        {
+            if (_host == null)
+                return;
+
+            try
+            {
+                var canvas = _host.GetComponent<Canvas>();
+                if (canvas != null)
+                {
+                    canvas.renderMode = RenderMode.WorldSpace;
+                    canvas.worldCamera = null;
+                    canvas.enabled = false;
+                    canvas.sortingOrder = -32760;
+                }
+
+                var group = _host.GetComponent<CanvasGroup>();
+                if (group != null)
+                {
+                    group.alpha = 0f;
+                    group.blocksRaycasts = false;
+                    group.interactable = false;
+                }
+
+                _host.transform.position = new Vector3(0f, -31000f, 0f);
+                var rt = _host.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchoredPosition = Vector2.zero;
+                    rt.localScale = Vector3.one;
+                }
+
+                if (_image != null)
+                    _image.rectTransform.anchoredPosition = Vector2.zero;
+            }
+            catch { /* ok */ }
         }
     }
 }

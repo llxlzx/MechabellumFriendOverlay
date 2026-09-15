@@ -244,6 +244,8 @@ namespace FriendOverlay.UI
             var sibling = -1;
             var canvasRestore = new List<CanvasState>();
             var groupRestore = new List<GroupState>();
+            var layerRestore = new List<LayerState>();
+            RectSnapshot? rectSnapshot = null;
 
             var prev = RenderTexture.active;
             try
@@ -255,6 +257,8 @@ namespace FriendOverlay.UI
                 oldPos = subject.transform.localPosition;
                 oldRot = subject.transform.localRotation;
                 oldScale = subject.transform.localScale;
+                CaptureLayers(subject.transform, layerRestore);
+                rectSnapshot = SnapshotRect(subject);
 
                 if (_image != null)
                     _image.gameObject.SetActive(false);
@@ -291,11 +295,101 @@ namespace FriendOverlay.UI
                             try { subject.transform.SetSiblingIndex(sibling); } catch { /* ok */ }
                         }
 
+                        // Restore RectTransform layout BEFORE localPosition — FitSubject mutates
+                        // anchors/anchoredPosition to screen-center, which is what parked GIF
+                        // instances into the lobby middle (1280,720 on 1440p).
+                        RestoreRect(subject, rectSnapshot);
                         subject.transform.localPosition = oldPos;
                         subject.transform.localRotation = oldRot;
                         subject.transform.localScale = oldScale;
+                        RestoreLayers(layerRestore);
                         subject.SetActive(oldActive);
                     }
+                }
+                catch { /* ok */ }
+            }
+        }
+
+        private sealed class LayerState
+        {
+            public GameObject Go = null!;
+            public int Layer;
+        }
+
+        private sealed class RectSnapshot
+        {
+            public bool HasRect;
+            public Vector2 AnchorMin;
+            public Vector2 AnchorMax;
+            public Vector2 Pivot;
+            public Vector2 AnchoredPosition;
+            public Vector2 SizeDelta;
+            public Vector3 LocalScale;
+        }
+
+        private static RectSnapshot SnapshotRect(GameObject subject)
+        {
+            var snap = new RectSnapshot();
+            try
+            {
+                var rt = subject.GetComponent<RectTransform>();
+                if (rt == null)
+                    return snap;
+
+                snap.HasRect = true;
+                snap.AnchorMin = rt.anchorMin;
+                snap.AnchorMax = rt.anchorMax;
+                snap.Pivot = rt.pivot;
+                snap.AnchoredPosition = rt.anchoredPosition;
+                snap.SizeDelta = rt.sizeDelta;
+                snap.LocalScale = rt.localScale;
+            }
+            catch { /* ok */ }
+
+            return snap;
+        }
+
+        private static void RestoreRect(GameObject subject, RectSnapshot? snap)
+        {
+            if (snap == null || !snap.HasRect)
+                return;
+
+            try
+            {
+                var rt = subject.GetComponent<RectTransform>();
+                if (rt == null)
+                    return;
+
+                rt.anchorMin = snap.AnchorMin;
+                rt.anchorMax = snap.AnchorMax;
+                rt.pivot = snap.Pivot;
+                rt.anchoredPosition = snap.AnchoredPosition;
+                rt.sizeDelta = snap.SizeDelta;
+                rt.localScale = snap.LocalScale;
+            }
+            catch { /* ok */ }
+        }
+
+        private static void CaptureLayers(Transform root, List<LayerState> into)
+        {
+            try
+            {
+                into.Add(new LayerState { Go = root.gameObject, Layer = root.gameObject.layer });
+                for (var i = 0; i < root.childCount; i++)
+                    CaptureLayers(root.GetChild(i), into);
+            }
+            catch { /* ok */ }
+        }
+
+        private static void RestoreLayers(List<LayerState> states)
+        {
+            for (var i = 0; i < states.Count; i++)
+            {
+                try
+                {
+                    var s = states[i];
+                    if (s.Go != null)
+                        s.Go.layer = s.Layer;
                 }
                 catch { /* ok */ }
             }

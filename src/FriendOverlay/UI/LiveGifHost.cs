@@ -132,9 +132,13 @@ namespace FriendOverlay.UI
 
                     pending = new Pending { Instance = instance, Attempts = 0 };
                     _pending[imageRef] = pending;
+                    // Host canvas is disabled; still deactivate between polls as belt-and-suspenders.
+                    try { instance.SetActive(false); } catch { /* ok */ }
                     return PrefabResult.Pending;
                 }
 
+                // Wake for settle / bake; host Canvas stays disabled so SSO cannot paint.
+                try { pending.Instance!.SetActive(true); } catch { /* ok */ }
                 pending.Attempts++;
                 var gif = pending.Instance.GetComponentInChildren<GRGif>(true);
                 var list = gif != null ? gif.spriteList : null;
@@ -236,6 +240,12 @@ namespace FriendOverlay.UI
             ForceActive(pending.Instance!.transform);
             var kind = BakeKind(imageRef);
             var tex = CaptureRootOnly(pending.Instance, kind);
+            // CaptureRoot mutates layout; re-park + re-zero alpha so GIF settle cannot paint lobby.
+            HideStagingDraw(pending.Instance);
+            var host = EnsureRoot();
+            if (host != null)
+                ParkHostOffscreen(host);
+            try { pending.Instance.SetActive(false); } catch { /* ok */ }
             pending.NextIndex = i + 1;
 
             if (tex != null)
@@ -426,21 +436,32 @@ namespace FriendOverlay.UI
         {
             try
             {
+                var canvas = host.GetComponent<Canvas>();
+                if (canvas != null)
+                {
+                    // WorldSpace far off-camera — never ScreenSpaceOverlay (center-anchored
+                    // children painted the lobby even when CanvasGroup.alpha was 0).
+                    canvas.renderMode = RenderMode.WorldSpace;
+                    canvas.worldCamera = null;
+                    canvas.enabled = false;
+                    canvas.sortingOrder = -32760;
+                }
+
                 var group = host.GetComponent<CanvasGroup>();
                 if (group != null)
                 {
-                    // alpha=0 hides ScreenSpaceOverlay paint. GRGif still advances via
-                    // explicit Update() during temporal bake; CanvasGroup does not mute that.
                     group.alpha = 0f;
                     group.blocksRaycasts = false;
                     group.interactable = false;
                 }
 
+                host.transform.position = new Vector3(0f, -30000f, 0f);
                 var rt = host.GetComponent<RectTransform>();
                 if (rt != null)
-                    rt.anchoredPosition = new Vector2(-4000f, -4000f);
-                else
-                    host.transform.position = new Vector3(-5000f, -5000f, 0f);
+                {
+                    rt.anchoredPosition = Vector2.zero;
+                    rt.localScale = Vector3.one;
+                }
             }
             catch { /* ok */ }
         }
@@ -457,9 +478,7 @@ namespace FriendOverlay.UI
             {
                 var host = new GameObject("FriendOverlayAvatarPrefabRoot");
                 UnityEngine.Object.DontDestroyOnLoad(host);
-                var canvas = host.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = -32760;
+                host.AddComponent<Canvas>();
                 host.AddComponent<CanvasGroup>();
                 ParkHostOffscreen(host);
                 _sharedRoot = host;

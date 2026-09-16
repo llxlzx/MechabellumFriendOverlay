@@ -146,7 +146,7 @@ namespace FriendOverlay.UI
         {
             var style = new GUIStyle();
 
-            // Prefer GameAssets.UiFont (YaHei-first by default). Null inherits GUI.skin.font.
+            // Prefer GameAssets.UiFont (Noto → YaHei → game). Null inherits GUI.skin.font.
             Guard(() => style.font = GameAssets.UiFont);
             Guard(() => style.fontSize = Mathf.Max(1, Mathf.RoundToInt(size * scale)));
             Guard(() => style.fontStyle = fontStyle);

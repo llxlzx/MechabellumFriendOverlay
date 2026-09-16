@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.34", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.35", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -117,7 +117,7 @@ namespace FriendOverlay
             _prefAnimations = _prefs.CreateEntry("Animations", true, "Fade, pulse and hover animations");
             _prefAnimatedOfficial = _prefs.CreateEntry("AnimatedOfficialAvatars", false, "Bake animated official avatar GIFs (uses more memory)");
             _prefUiScale = _prefs.CreateEntry("UiScale", 0f, "UI scale (0 = auto from screen height)");
-            _prefUseGameFont = _prefs.CreateEntry("UseGameFont", false, "Prefer in-game friend-row font before YaHei (default uses YaHei-first)");
+            _prefUseGameFont = _prefs.CreateEntry("UseGameFont", false, "Prefer in-game friend-row font before Noto/YaHei (default uses Noto Sans SC)");
             _prefTransparentNative = _prefs.CreateEntry("TransparentNativePanel", true, "Hide the native panel via CanvasGroup instead of deactivating it");
             _prefCollapseJoinable = _prefs.CreateEntry("CollapseJoinable", false, "Collapse the online/joinable section");
             _prefCollapseBusy = _prefs.CreateEntry("CollapseBusy", false, "Collapse the online/in-battle section");

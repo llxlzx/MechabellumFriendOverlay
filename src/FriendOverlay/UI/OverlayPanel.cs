@@ -872,7 +872,11 @@ namespace FriendOverlay.UI
                 return;
 
             _windowReady = true;
-            _window = new Rect(Theme.S(60f), Theme.S(48f), Theme.S(900f), Theme.S(740f));
+            _window = new Rect(
+                Theme.S(FriendOverlay.Core.OverlayGeometry.DefaultX),
+                Theme.S(FriendOverlay.Core.OverlayGeometry.DefaultY),
+                Theme.S(FriendOverlay.Core.OverlayGeometry.DefaultW),
+                Theme.S(FriendOverlay.Core.OverlayGeometry.DefaultH));
         }
 
         private static void CaptureChromeDrag()

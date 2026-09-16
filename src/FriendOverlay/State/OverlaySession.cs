@@ -68,11 +68,13 @@ namespace FriendOverlay.State
 
             ApplyModeVisibility();
             OverlayVisible = Mode == OverlayMode.Overlay;
+            LobbyPresence.NoteSessionBegan();
         }
 
         public static void End(bool restoreNativeLayer = true)
         {
             OverlayVisible = false;
+            LobbyPresence.NoteSessionEnded();
 
             UI.InputShield.Destroy();
 

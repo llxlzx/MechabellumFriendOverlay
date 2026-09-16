@@ -70,6 +70,7 @@ namespace FriendOverlay.UI
         public static GUIStyle? Invisible { get; private set; }
 
         private static float _builtScale = -1f;
+        private static int _builtFontId = int.MinValue;
         private static bool _loggedFailure;
 
         public static float Scale
@@ -92,7 +93,9 @@ namespace FriendOverlay.UI
         public static void EnsureStyles()
         {
             var scale = Scale;
-            if (Title != null && Mathf.Approximately(_builtScale, scale))
+            var font = GameAssets.UiFont;
+            var fontId = font != null ? font.GetInstanceID() : 0;
+            if (Title != null && Mathf.Approximately(_builtScale, scale) && fontId == _builtFontId)
                 return;
 
             try
@@ -120,6 +123,7 @@ namespace FriendOverlay.UI
             }
 
             _builtScale = scale;
+            _builtFontId = fontId;
         }
 
         public static Color StatusColor(FriendStatusKind kind) => kind switch
@@ -142,8 +146,7 @@ namespace FriendOverlay.UI
         {
             var style = new GUIStyle();
 
-            // The font stays null on purpose: null means "inherit GUI.skin.font", which is the only
-            // font proven to carry CJK glyphs in this build. GameAssets can override it opt-in.
+            // Prefer GameAssets.UiFont (YaHei-first by default). Null inherits GUI.skin.font.
             Guard(() => style.font = GameAssets.UiFont);
             Guard(() => style.fontSize = Mathf.Max(1, Mathf.RoundToInt(size * scale)));
             Guard(() => style.fontStyle = fontStyle);

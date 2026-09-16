@@ -12,8 +12,8 @@ namespace FriendOverlay.UI
     public static class GameAssets
     {
         /// <summary>
-        /// Opt-in. GUI.skin.font is the only font proven to carry CJK glyphs in this build, so the
-        /// overlay inherits it by default and only borrows the game font when explicitly enabled.
+        /// When true, prefer the in-game friend-row font before YaHei. When false (default),
+        /// resolve YaHei-first then fall back to the game font / GUI.skin.
         /// </summary>
         public static bool UseGameFont { get; set; }
 
@@ -36,9 +36,6 @@ namespace FriendOverlay.UI
         {
             get
             {
-                if (!UseGameFont)
-                    return null;
-
                 if (!_fontResolved)
                     ResolveFont();
 
@@ -439,41 +436,70 @@ namespace FriendOverlay.UI
         private static void ResolveFont()
         {
             _fontResolved = true;
+            _font = null;
 
-            var cell = FindFirstCell();
-            if (cell != null)
+            if (UseGameFont)
             {
-                try
-                {
-                    var label = cell.nameLabel;
-                    if (label != null && label.font != null)
-                    {
-                        _font = label.font;
-                        MelonLoader.MelonLogger.Msg("[FriendOverlay] borrowed game font: " + _font.name);
-                        return;
-                    }
-                }
-                catch
-                {
-                    // fall through to OS font
-                }
+                if (TryBorrowGameFont(out _font))
+                    return;
+                if (TryOsCjkFont(out _font))
+                    return;
+                return;
             }
+
+            if (TryOsCjkFont(out _font))
+                return;
+            if (TryBorrowGameFont(out _font))
+                return;
+        }
+
+        private static bool TryBorrowGameFont(out Font? font)
+        {
+            font = null;
+            var cell = FindFirstCell();
+            if (cell == null)
+                return false;
 
             try
             {
-                _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei UI", 16);
-                if (_font != null)
+                var label = cell.nameLabel;
+                if (label != null && label.font != null)
                 {
-                    MelonLoader.MelonLogger.Msg("[FriendOverlay] using OS font: " + _font.name);
-                    return;
+                    font = label.font;
+                    MelonLoader.MelonLogger.Msg("[FriendOverlay] borrowed game font: " + font.name);
+                    return true;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                MelonLoader.MelonLogger.Msg("[FriendOverlay] OS font unavailable: " + ex.Message);
+                // fall through
             }
 
-            _font = null;
+            return false;
+        }
+
+        private static bool TryOsCjkFont(out Font? font)
+        {
+            font = null;
+            foreach (var face in new[] { "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑" })
+            {
+                try
+                {
+                    var created = Font.CreateDynamicFontFromOSFont(face, 16);
+                    if (created != null)
+                    {
+                        font = created;
+                        MelonLoader.MelonLogger.Msg("[FriendOverlay] using OS font: " + font.name);
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MelonLoader.MelonLogger.Msg("[FriendOverlay] OS font '" + face + "' unavailable: " + ex.Message);
+                }
+            }
+
+            return false;
         }
 
         internal static FriendCellNode? FindFirstCell()

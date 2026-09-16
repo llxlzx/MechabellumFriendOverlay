@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.33", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.34", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -32,6 +32,7 @@ namespace FriendOverlay
         private MelonPreferences_Entry<float>? _prefWinY;
         private MelonPreferences_Entry<float>? _prefWinW;
         private MelonPreferences_Entry<float>? _prefWinH;
+        private MelonPreferences_Entry<bool>? _prefGeometryMigratedV034;
 
         public override void OnInitializeMelon()
         {
@@ -82,9 +83,15 @@ namespace FriendOverlay
             FriendListService.Tick();
             FansListService.Tick();
             ImguiFriendOverlay.UpdateInput();
+            LobbyPresence.Tick();
 
             if (OverlaySession.Panel != null && Input.GetKeyDown(OverlaySession.ToggleHotkey))
                 OverlaySession.ToggleMode();
+        }
+
+        public override void OnSceneWasLoaded(int buildIndex, string sceneName)
+        {
+            LobbyPresence.OnSceneLoaded(sceneName);
         }
 
         public override void OnGUI()
@@ -109,7 +116,7 @@ namespace FriendOverlay
             _prefAnimations = _prefs.CreateEntry("Animations", true, "Fade, pulse and hover animations");
             _prefAnimatedOfficial = _prefs.CreateEntry("AnimatedOfficialAvatars", false, "Bake animated official avatar GIFs (uses more memory)");
             _prefUiScale = _prefs.CreateEntry("UiScale", 0f, "UI scale (0 = auto from screen height)");
-            _prefUseGameFont = _prefs.CreateEntry("UseGameFont", false, "Borrow the in-game font instead of the default GUI font");
+            _prefUseGameFont = _prefs.CreateEntry("UseGameFont", false, "Prefer in-game friend-row font before YaHei (default uses YaHei-first)");
             _prefTransparentNative = _prefs.CreateEntry("TransparentNativePanel", true, "Hide the native panel via CanvasGroup instead of deactivating it");
             _prefCollapseJoinable = _prefs.CreateEntry("CollapseJoinable", false, "Collapse the online/joinable section");
             _prefCollapseBusy = _prefs.CreateEntry("CollapseBusy", false, "Collapse the online/in-battle section");
@@ -120,6 +127,7 @@ namespace FriendOverlay
             _prefWinY = _prefs.CreateEntry("WindowY", 0f, "Overlay window Y");
             _prefWinW = _prefs.CreateEntry("WindowW", 0f, "Overlay window width");
             _prefWinH = _prefs.CreateEntry("WindowH", 0f, "Overlay window height");
+            _prefGeometryMigratedV034 = _prefs.CreateEntry("GeometryMigratedV034", false, "One-shot safe-area clamp for 0.3.34");
 
             OverlaySession.PreferOverlayDefault = _prefOverlayDefault.Value;
             OverlaySession.ToggleHotkey = (KeyCode)_prefHotkey.Value;
@@ -137,14 +145,49 @@ namespace FriendOverlay
             GameAssets.UseGameFont = _prefUseGameFont.Value;
             OverlayPerfSettings.AnimatedOfficialAvatars = _prefAnimatedOfficial.Value;
 
-            if (_prefWinW.Value > 1f && _prefWinH.Value > 1f)
+            ApplyWindowGeometryFromPrefs();
+        }
+
+        private void ApplyWindowGeometryFromPrefs()
+        {
+            var migrated = _prefGeometryMigratedV034!.Value;
+            var hasSaved = _prefWinW!.Value > 1f && _prefWinH!.Value > 1f;
+
+            if (!hasSaved)
             {
-                ImguiFriendOverlay.WindowRect = new Rect(
-                    _prefWinX.Value,
-                    _prefWinY.Value,
-                    _prefWinW.Value,
-                    _prefWinH.Value);
+                _prefGeometryMigratedV034.Value = true;
+                return;
             }
+
+            var x = _prefWinX!.Value;
+            var y = _prefWinY!.Value;
+            var w = _prefWinW!.Value;
+            var h = _prefWinH!.Value;
+
+            if (!migrated)
+            {
+                var screenW = Screen.width > 0 ? Screen.width : 1920f;
+                var screenH = Screen.height > 0 ? Screen.height : 1080f;
+                if (FriendOverlay.Core.OverlayGeometry.TryClampToBottomSafeArea(
+                        x, y, w, h, screenW, screenH,
+                        out var nx, out var ny, out var nw, out var nh))
+                {
+                    LoggerInstance.Msg(
+                        $"[FriendOverlay] geometry migrate 0.3.34: ({x:0},{y:0},{w:0}x{h:0}) → ({nx:0},{ny:0},{nw:0}x{nh:0})");
+                    x = nx;
+                    y = ny;
+                    w = nw;
+                    h = nh;
+                    _prefWinX.Value = x;
+                    _prefWinY.Value = y;
+                    _prefWinW.Value = w;
+                    _prefWinH.Value = h;
+                }
+
+                _prefGeometryMigratedV034.Value = true;
+            }
+
+            ImguiFriendOverlay.WindowRect = new Rect(x, y, w, h);
         }
 
         private void SavePreferences()

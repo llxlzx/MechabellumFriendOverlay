@@ -56,6 +56,22 @@ public class WindowResizeMathTests
     }
 
     [Fact]
+    public void HitTest_enlarged_corner_pad_still_se_away_from_thin_edge()
+    {
+        // Outside 8px edge strips but inside 24px SE corner pad.
+        var edge = WindowResizeMath.HitTest(W - 20f, H - 20f, W, H, edgeThickness: 8f, cornerThickness: 24f);
+        Assert.Equal(WindowResizeEdge.SE, edge);
+    }
+
+    [Fact]
+    public void HitTest_bottom_center_stays_south_with_corner_pad()
+    {
+        Assert.Equal(
+            WindowResizeEdge.S,
+            WindowResizeMath.HitTest(W / 2f, H - 2f, W, H, edgeThickness: 8f, cornerThickness: 24f));
+    }
+
+    [Fact]
     public void ApplyDelta_se_grows_width_height()
     {
         var r = WindowResizeMath.ApplyDelta(WindowResizeEdge.SE, 100f, 50f, 900f, 540f, dx: 20f, dy: 10f, minW: 720f, minH: 420f);

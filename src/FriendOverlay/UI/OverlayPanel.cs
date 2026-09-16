@@ -501,17 +501,17 @@ namespace FriendOverlay.UI
             Gfx.Fill(r, Theme.Bg1);
             Gfx.Fill(new Rect(r.x, r.y, r.width, 1f), Theme.LineDim);
             Gfx.Text(new Rect(pad, r.y, r.width - pad * 2f - Theme.S(20f), r.height),
-                "拖动标题栏移动  ·  拖边框/四角缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
+                "拖动标题栏移动  ·  边框单向缩放 / 四角整体缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
                 (RowCard.ForceLetters ? "  ·  Ctrl+L 字母模式（诊断）" : string.Empty),
                 Theme.TextMuted,
                 Theme.Meta);
 
-            // Resize grip.
-            var grip = new Rect(r.xMax - Theme.S(16f), r.yMax - Theme.S(16f), Theme.S(14f), Theme.S(14f));
+            // Resize grip (visual cue for SE corner; hit zone is larger than the drawn grip).
+            var grip = new Rect(r.xMax - Theme.S(22f), r.yMax - Theme.S(22f), Theme.S(20f), Theme.S(20f));
             var gripColor = IsResizing || Gfx.Hover(grip) ? Theme.Accent : Theme.Line;
             for (var i = 0; i < 3; i++)
             {
-                var o = i * Theme.S(4f);
+                var o = i * Theme.S(5f);
                 Gfx.Fill(new Rect(grip.x + o, grip.yMax - Theme.S(2f), grip.width - o, Theme.S(1f)), gripColor);
                 Gfx.Fill(new Rect(grip.xMax - Theme.S(2f), grip.y + o, Theme.S(1f), grip.height - o), gripColor);
             }
@@ -903,8 +903,10 @@ namespace FriendOverlay.UI
                 return;
 
             var thickness = Theme.S(8f);
+            var corner = Theme.S(24f);
             var edge = WindowResizeMath.HitTest(
-                e.mousePosition.x, e.mousePosition.y, _window.width, _window.height, thickness);
+                e.mousePosition.x, e.mousePosition.y, _window.width, _window.height,
+                edgeThickness: thickness, cornerThickness: corner);
             if (edge != WindowResizeEdge.None)
             {
                 _resizeEdge = edge;

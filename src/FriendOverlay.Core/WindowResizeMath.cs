@@ -37,20 +37,39 @@ public readonly struct WindowRectF
 /// </summary>
 public static class WindowResizeMath
 {
-    public static WindowResizeEdge HitTest(float localX, float localY, float w, float h, float thickness)
+    public static WindowResizeEdge HitTest(float localX, float localY, float w, float h, float thickness) =>
+        HitTest(localX, localY, w, h, edgeThickness: thickness, cornerThickness: thickness);
+
+    public static WindowResizeEdge HitTest(
+        float localX,
+        float localY,
+        float w,
+        float h,
+        float edgeThickness,
+        float cornerThickness)
     {
-        if (w <= 0f || h <= 0f || thickness <= 0f)
+        if (w <= 0f || h <= 0f || edgeThickness <= 0f)
             return WindowResizeEdge.None;
 
-        var onL = localX >= 0f && localX <= thickness;
-        var onR = localX >= w - thickness && localX <= w;
-        var onT = localY >= 0f && localY <= thickness;
-        var onB = localY >= h - thickness && localY <= h;
+        if (cornerThickness < edgeThickness)
+            cornerThickness = edgeThickness;
 
-        if (onT && onL) return WindowResizeEdge.NW;
-        if (onT && onR) return WindowResizeEdge.NE;
-        if (onB && onL) return WindowResizeEdge.SW;
-        if (onB && onR) return WindowResizeEdge.SE;
+        // Corners first (enlarged pad), then edges.
+        var onLCorner = localX >= 0f && localX <= cornerThickness;
+        var onRCorner = localX >= w - cornerThickness && localX <= w;
+        var onTCorner = localY >= 0f && localY <= cornerThickness;
+        var onBCorner = localY >= h - cornerThickness && localY <= h;
+
+        if (onTCorner && onLCorner) return WindowResizeEdge.NW;
+        if (onTCorner && onRCorner) return WindowResizeEdge.NE;
+        if (onBCorner && onLCorner) return WindowResizeEdge.SW;
+        if (onBCorner && onRCorner) return WindowResizeEdge.SE;
+
+        var onL = localX >= 0f && localX <= edgeThickness;
+        var onR = localX >= w - edgeThickness && localX <= w;
+        var onT = localY >= 0f && localY <= edgeThickness;
+        var onB = localY >= h - edgeThickness && localY <= h;
+
         if (onT) return WindowResizeEdge.N;
         if (onB) return WindowResizeEdge.S;
         if (onL) return WindowResizeEdge.W;

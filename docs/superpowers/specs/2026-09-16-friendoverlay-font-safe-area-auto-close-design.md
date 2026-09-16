@@ -1,7 +1,7 @@
 # FriendOverlay 0.3.34 — Font, invite safe area, auto-close on match — Design
 
 **Date:** 2026-09-16  
-**Status:** Approved for planning (brainstorming complete)  
+**Status:** Approved for implementation (self-check amendments applied 2026-09-16)  
 **Current version:** 0.3.33 → target **0.3.34**  
 **Repo:** `MechabellumFriendOverlay` (IMGUI overlay; MelonLoader)
 
@@ -28,14 +28,19 @@ Ship a player-facing update that:
 
 **Files:** `UI/Theme.cs`, `UI/GameAssets.cs`, prefs in `FriendOverlayMod.cs`
 
-- Default UI font resolution order:
+**Self-check (code fact):** Today `UseGameFont=false` forces `UiFont=null` (inherit `GUI.skin`) because an old comment claimed only the skin is CJK-safe. `UseGameFont=true` resolves **game font first**, then YaHei — so enabling the pref can still look “game-ugly”. Players who never touch prefs never get YaHei.
+
+**Locked semantics for 0.3.34:**
+
+- **Default path (always resolve a preferred UI font):**
   1. `Microsoft YaHei UI`
   2. `Microsoft YaHei` / `微软雅黑`
-  3. Existing borrow of game `FriendCellNode.nameLabel.font` (when available)
+  3. Borrow game `FriendCellNode.nameLabel.font` if available
   4. `null` → inherit `GUI.skin.font` (CJK fail-open)
-- All `Theme` text styles continue to assign `GameAssets.UiFont` in `Make(...)`.
-- Prefer shipping so players see YaHei without hunting prefs; keep a pref to force “game font only” if already present, defaulting to the new resolution path.
-- Keep existing size ladder (Title / Tab / Name / Stat / Meta / Button / …) and `UiScale` / 1080p scale.
+- Pref `UseGameFont` (keep name): when **true**, prefer game `nameLabel.font` **before** YaHei (power users who want exact game look). Default remains **false** → YaHei-first path above.
+- If `CreateDynamicFontFromOSFont` returns null or throws → fall through; never leave the overlay unreadable.
+- Invalidate/rebuild `Theme` styles when the resolved font changes (existing EnsureStyles path).
+- Keep size ladder and `UiScale` / 1080p scale.
 
 ## 2. Invite / bottom chrome occlusion
 
@@ -43,26 +48,33 @@ Ship a player-facing update that:
 
 **Root cause:** Default rect ~`(60, 48, 900×740)` at 1080p covers a large left slab; invite copy / actions sit mid-bottom; InputShield mirrors the window (fullscreen only while drag/resize/modals).
 
-**Changes:**
+**Changes (concrete):**
 
-- New default size: width ~`900`, height ~`520–560` (scaled via `Theme.S`), top-left anchor unchanged in spirit (`~60, 48`).
-- Bottom safe area: ensure default bottom edge leaves room for invite strip + bottom-left self profile (target: bottom margin roughly ≥ ~280–360px at 1080p depending on final height pick — validate against lobby screenshot layout).
-- Migration: if persisted `WindowW/H` (or Y+H) clearly overflows the safe area (e.g. covers bottom ~280px band), clamp once on upgrade to 0.3.34; do not wipe a player’s preferred X/Y if still valid.
-- `InputShield` stays panel-sized in steady state; fullscreen only for drag/resize/confirm/picker; on release, immediately resync to window rect.
+- New default rect at scale 1: **`(60, 48, 900, 540)`** via `Theme.S` → bottom at ~588 on 1080p (~492px free) so invite line + bottom-left profile stay clear.
+- Min size unchanged in spirit (existing ~720×420 scaled clamp).
+- One-shot migration pref e.g. `GeometryMigratedV034` (bool, default false):
+  - If not migrated and persisted window bottom (`Y+H`) enters the bottom **280px** band of the screen (or height ≥ 700 at scale 1 equivalent), clamp height (and Y if needed) so bottom stays above that band; keep X when valid; log once; set migrated=true.
+  - Fresh installs (`WindowW/H ≤ 1`) just get the new default; still set migrated=true.
+- `InputShield` stays panel-sized in steady state; fullscreen only for drag/resize/confirm/picker; on mouse-up, immediately `SyncRect` to window.
 
 ## 3. Auto-close when entering loading / match
 
-**Files:** `FriendOverlayMod.OnUpdate` (or small helper e.g. `State/LobbyPresence.cs`), `State/OverlaySession.cs` (`End`), possibly light Harmony if polling is insufficient
+**Files:** `FriendOverlayMod` (`OnUpdate` + `OnSceneWasLoaded` if available), small helper e.g. `State/LobbyPresence.cs`, `State/OverlaySession.End`
 
-**Behavior:** When overlay session is active and we detect **local player left lobby UI into loading/match**, call `OverlaySession.End()` (closes IMGUI window, destroys InputShield, restores native friend layer state as today).
+**Behavior:** When overlay session is active and we detect **local player left lobby into loading / match**, call `OverlaySession.End()` (closes IMGUI, destroys InputShield, restores native layer as today).
 
-**Detection (implementation order):**
+**Self-check (code fact):** `Panel == null` alone is **not** enough — player screenshots show the overlay still drawing on the **match loading** screen, so the FriendPanel session can survive past lobby. Must add positive leave-lobby detection.
 
-1. Strengthen existing fail-safe: `Panel == null` / friend panel torn down → `End`.
-2. Add leave-lobby signals suitable for Mechabellum (scene change away from lobby HUD, and/or battle/loading UI presence, and/or game state proxies already used elsewhere). Prefer read-only probes + polling in `OnUpdate` first; add Harmony only if probes are unreliable.
-3. Guard against false positives while still on the multiplayer lobby friend screen (must not close merely because party queue text changes).
+**Detection (locked order):**
 
-**Explicitly not done:** reopen on return to lobby; keep overlay during match as a corner chip.
+1. Keep / strengthen fail-safe: `Panel == null` → destroy stray `InputShield`; hooks that already `End` on Hide/Release/Close stay.
+2. **Primary:** Melon `OnSceneWasLoaded` / active-scene change while a session is open → if new scene is not the multiplayer lobby HUD scene, `End()`. Record lobby scene name when `OverlaySession.Begin` succeeds so comparison is concrete.
+3. **Secondary (poll in OnUpdate, cheap):** if session open and lobby presence probe fails for N consecutive frames (e.g. 3) — e.g. friend-button / lobby canvas inactive, or known loading/battle root appears — `End()`.
+4. **False-positive guard:** do **not** close solely because party queue text / “等待队长” changes; do **not** close on F8 native toggle; only leave-lobby / loading / battle.
+
+If scene names prove unstable in testing, fall back to secondary probe as primary and document the chosen object/scene markers in the plan.
+
+**Explicitly not done:** reopen on return to lobby; corner chip in match.
 
 ## Version & docs
 
@@ -79,10 +91,22 @@ Ship a player-facing update that:
 
 ## Risks
 
-- Leave-lobby false positive → close while still in lobby: mitigate with dual signals / whitelist lobby presence.
+- Leave-lobby false positive → close while still in lobby: dual signals + lobby scene captured at Begin.
 - Persisted huge window: one-time clamp may surprise power users — log once when migrating.
-- OS without YaHei: must fall back silently to game/skin font.
+- OS without YaHei / OS font CJK issues in IMGUI: fall back to game font then `GUI.skin` (do not ship a broken blank-glyph default).
+- Scene-name instability across game patches: secondary presence probe required.
+
+## Spec self-check log (2026-09-16)
+
+| Check | Result |
+|-------|--------|
+| Font vs current `UseGameFont` semantics | **Amended** — YaHei-first by default; pref true = game-first |
+| Default geometry ambiguity 520–560 | **Amended** — lock **900×540** |
+| Migration without wiping X/Y | OK + `GeometryMigratedV034` |
+| Auto-close relying only on Panel null | **Amended** — insufficient; scene + presence probes |
+| Invite-only close / reopen / chip | Still non-goals |
+| Version / docs | OK |
 
 ## Implementation next
 
-After user confirms this written spec: writing-plans (multi-task: font, geometry, auto-close, version) then implement on a feature branch off current FriendOverlay tip.
+writing-plans → implement on feature branch (not `main`/`master`); TDD where practical (geometry clamp, font resolve order, leave-lobby End).

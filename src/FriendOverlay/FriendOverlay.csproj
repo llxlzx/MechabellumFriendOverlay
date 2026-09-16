@@ -45,6 +45,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Fonts\NotoSansSC-Regular.otf" LogicalName="FriendOverlay.Fonts.NotoSansSC-Regular.otf" />
+    <EmbeddedResource Include="Fonts\OFL.txt" LogicalName="FriendOverlay.Fonts.OFL.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="MelonLoader">
       <HintPath>$(MelonRoot)\net6\MelonLoader.dll</HintPath>
       <Private>false</Private>

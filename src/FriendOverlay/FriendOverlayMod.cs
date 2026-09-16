@@ -105,6 +105,7 @@ namespace FriendOverlay
         public override void OnApplicationQuit()
         {
             SavePreferences();
+            EmbeddedFontLoader.ShutdownBestEffort();
         }
 
         private void LoadPreferences()

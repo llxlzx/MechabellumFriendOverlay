@@ -51,11 +51,15 @@ namespace FriendOverlay.UI
         private static bool _dragging;
         private static float _dragOffX;
         private static float _dragOffY;
-        private static bool _resizing;
+        private static WindowResizeEdge _resizeEdge;
+        private static float _resizeStartX;
+        private static float _resizeStartY;
         private static float _resizeStartW;
         private static float _resizeStartH;
         private static float _resizeStartMouseX;
         private static float _resizeStartMouseY;
+
+        private static bool IsResizing => _resizeEdge != WindowResizeEdge.None;
 
         private static ulong _menuRowId;
         private static Rect _menuRect;
@@ -124,7 +128,7 @@ namespace FriendOverlay.UI
             if (OverlaySession.Panel == null || OverlaySession.Mode != OverlayMode.Overlay)
             {
                 _dragging = false;
-                _resizing = false;
+                _resizeEdge = WindowResizeEdge.None;
                 return;
             }
 
@@ -176,7 +180,7 @@ namespace FriendOverlay.UI
             Tab = FriendListTab.Following;
             FansListService.Active = false;
             _dragging = false;
-            _resizing = false;
+            _resizeEdge = WindowResizeEdge.None;
             _scroll.Reset();
             _search.Clear();
             _search.Blur();
@@ -251,7 +255,7 @@ namespace FriendOverlay.UI
             if (!InputShield.Active)
                 return;
 
-            if (_dragging || _resizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen)
+            if (_dragging || IsResizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen)
                 InputShield.SyncFullScreen();
             else
                 InputShield.SyncRect(_window);
@@ -273,7 +277,7 @@ namespace FriendOverlay.UI
                 e.type != EventType.ScrollWheel)
                 return;
 
-            if (_dragging || _resizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen ||
+            if (_dragging || IsResizing || ImguiConfirm.IsOpen || ImguiBattleTypePicker.IsOpen ||
                 _window.Contains(e.mousePosition))
                 e.Use();
         }
@@ -497,14 +501,14 @@ namespace FriendOverlay.UI
             Gfx.Fill(r, Theme.Bg1);
             Gfx.Fill(new Rect(r.x, r.y, r.width, 1f), Theme.LineDim);
             Gfx.Text(new Rect(pad, r.y, r.width - pad * 2f - Theme.S(20f), r.height),
-                "拖动标题栏移动  ·  右下角缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
+                "拖动标题栏移动  ·  拖边框/四角缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
                 (RowCard.ForceLetters ? "  ·  Ctrl+L 字母模式（诊断）" : string.Empty),
                 Theme.TextMuted,
                 Theme.Meta);
 
             // Resize grip.
             var grip = new Rect(r.xMax - Theme.S(16f), r.yMax - Theme.S(16f), Theme.S(14f), Theme.S(14f));
-            var gripColor = _resizing || Gfx.Hover(grip) ? Theme.Accent : Theme.Line;
+            var gripColor = IsResizing || Gfx.Hover(grip) ? Theme.Accent : Theme.Line;
             for (var i = 0; i < 3; i++)
             {
                 var o = i * Theme.S(4f);
@@ -888,7 +892,7 @@ namespace FriendOverlay.UI
             if (e.type == EventType.MouseUp && e.button == 0)
             {
                 _dragging = false;
-                _resizing = false;
+                _resizeEdge = WindowResizeEdge.None;
                 return;
             }
 
@@ -898,10 +902,14 @@ namespace FriendOverlay.UI
             if (_tabStrip.Contains(e.mousePosition))
                 return;
 
-            var grip = new Rect(_window.width - Theme.S(22f), _window.height - Theme.S(22f), Theme.S(22f), Theme.S(22f));
-            if (grip.Contains(e.mousePosition))
+            var thickness = Theme.S(8f);
+            var edge = WindowResizeMath.HitTest(
+                e.mousePosition.x, e.mousePosition.y, _window.width, _window.height, thickness);
+            if (edge != WindowResizeEdge.None)
             {
-                _resizing = true;
+                _resizeEdge = edge;
+                _resizeStartX = _window.x;
+                _resizeStartY = _window.y;
                 _resizeStartW = _window.width;
                 _resizeStartH = _window.height;
                 _resizeStartMouseX = Input.mousePosition.x;
@@ -924,13 +932,13 @@ namespace FriendOverlay.UI
 
         private static void FollowDrag()
         {
-            if (!_dragging && !_resizing)
+            if (!_dragging && !IsResizing)
                 return;
 
             if (!Input.GetMouseButton(0))
             {
                 _dragging = false;
-                _resizing = false;
+                _resizeEdge = WindowResizeEdge.None;
                 return;
             }
 
@@ -942,8 +950,25 @@ namespace FriendOverlay.UI
             }
             else
             {
-                _window.width = _resizeStartW + (mp.x - _resizeStartMouseX);
-                _window.height = _resizeStartH + (_resizeStartMouseY - mp.y);
+                var dx = mp.x - _resizeStartMouseX;
+                // Unity mouse Y is bottom-up; +dy means pointer moved down on screen.
+                var dy = _resizeStartMouseY - mp.y;
+                var minW = Theme.S(720f);
+                var minH = Theme.S(420f);
+                var next = WindowResizeMath.ApplyDelta(
+                    _resizeEdge,
+                    _resizeStartX,
+                    _resizeStartY,
+                    _resizeStartW,
+                    _resizeStartH,
+                    dx,
+                    dy,
+                    minW,
+                    minH);
+                _window.x = next.X;
+                _window.y = next.Y;
+                _window.width = next.W;
+                _window.height = next.H;
             }
 
             ClampWindowToScreen();

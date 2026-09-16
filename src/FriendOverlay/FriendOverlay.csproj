@@ -40,6 +40,7 @@
     <Compile Include="..\FriendOverlay.Core\SharedImageLoadMiss.cs" Link="Core\SharedImageLoadMiss.cs" />
     <Compile Include="..\FriendOverlay.Core\OverlayGeometry.cs" Link="Core\OverlayGeometry.cs" />
     <Compile Include="..\FriendOverlay.Core\LobbyLeavePolicy.cs" Link="Core\LobbyLeavePolicy.cs" />
+    <Compile Include="..\FriendOverlay.Core\WindowResizeMath.cs" Link="Core\WindowResizeMath.cs" />
   </ItemGroup>
 
   <ItemGroup>

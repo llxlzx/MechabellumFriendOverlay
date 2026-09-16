@@ -24,4 +24,11 @@ public static class LobbyLeavePolicy
 
     public static bool ShouldCloseOnPresenceLost(int consecutiveFailFrames) =>
         consecutiveFailFrames >= PresenceFailFramesToClose;
+
+    /// <summary>
+    /// Match loading UI (e.g. MainSceneLoadingWindow) can appear while the active scene is still
+    /// the lobby MainMenu — close as soon as that loading surface is visible.
+    /// </summary>
+    public static bool ShouldCloseOnMatchLoadingVisible(bool matchLoadingVisible) =>
+        matchLoadingVisible;
 }

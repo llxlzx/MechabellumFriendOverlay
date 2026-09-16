@@ -59,5 +59,12 @@ namespace FriendOverlay.Tests
             Assert.False(LobbyLeavePolicy.ShouldCloseOnPresenceLost(2));
             Assert.True(LobbyLeavePolicy.ShouldCloseOnPresenceLost(3));
         }
+
+        [Fact]
+        public void MatchLoading_closes_when_visible()
+        {
+            Assert.True(LobbyLeavePolicy.ShouldCloseOnMatchLoadingVisible(true));
+            Assert.False(LobbyLeavePolicy.ShouldCloseOnMatchLoadingVisible(false));
+        }
     }
 }

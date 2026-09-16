@@ -1,4 +1,5 @@
 using FriendOverlay.Core;
+using Il2CppGameRiver.Client;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -13,6 +14,7 @@ namespace FriendOverlay.State
         private static string? _lobbySceneName;
         private static int _presenceFailFrames;
         private static string? _lastActiveScene;
+        private static int _nextLoadingProbeFrame;
 
         public static void NoteSessionBegan()
         {
@@ -53,6 +55,24 @@ namespace FriendOverlay.State
         {
             if (OverlaySession.Degraded)
                 return;
+
+            if (OverlaySession.Panel == null && !OverlaySession.OverlayVisible)
+            {
+                _presenceFailFrames = 0;
+                return;
+            }
+
+            // Harmony OnOpen is primary; poll lightly in case OnOpen was missed.
+            if (Time.frameCount >= _nextLoadingProbeFrame)
+            {
+                _nextLoadingProbeFrame = Time.frameCount + 5;
+                if (LobbyLeavePolicy.ShouldCloseOnMatchLoadingVisible(ProbeMatchLoadingVisible()))
+                {
+                    MelonLogger.Msg("[FriendOverlay] leave-lobby match loading → close overlay");
+                    OverlaySession.End();
+                    return;
+                }
+            }
 
             if (OverlaySession.Panel == null)
             {
@@ -95,6 +115,43 @@ namespace FriendOverlay.State
                 MelonLogger.Msg("[FriendOverlay] leave-lobby presence lost → close overlay");
                 OverlaySession.End();
             }
+        }
+
+        /// <summary>
+        /// True when the game's main-scene loading window is active (loading bar UI).
+        /// </summary>
+        public static bool ProbeMatchLoadingVisible()
+        {
+            try
+            {
+                var windows = Resources.FindObjectsOfTypeAll<MainSceneLoadingWindow>();
+                if (windows == null || windows.Length == 0)
+                    return false;
+
+                for (var i = 0; i < windows.Length; i++)
+                {
+                    var w = windows[i];
+                    if (w == null || w.Equals(null))
+                        continue;
+
+                    try
+                    {
+                        var go = w.gameObject;
+                        if (go != null && !go.Equals(null) && go.activeInHierarchy)
+                            return true;
+                    }
+                    catch
+                    {
+                        // next
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
         }
 
         /// <summary>

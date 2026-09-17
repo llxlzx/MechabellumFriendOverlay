@@ -7,7 +7,7 @@
     <AssemblyName>FriendOverlay</AssemblyName>
     <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
          de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
-    <Version>0.3.37</Version>
+    <Version>0.3.38</Version>
     <RootNamespace>FriendOverlay</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -45,7 +45,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Fonts\NotoSansSC-Regular.otf" LogicalName="FriendOverlay.Fonts.NotoSansSC-Regular.otf" />
+    <EmbeddedResource Include="Fonts\NotoSansSC-Medium.otf" LogicalName="FriendOverlay.Fonts.NotoSansSC-Medium.otf" />
     <EmbeddedResource Include="Fonts\OFL.txt" LogicalName="FriendOverlay.Fonts.OFL.txt" />
   </ItemGroup>
 

@@ -7,14 +7,14 @@ using UnityEngine;
 namespace FriendOverlay.UI
 {
     /// <summary>
-    /// Extracts embedded Noto Sans SC, privately registers it with GDI, and builds a Unity Font
+    /// Extracts embedded Noto Sans SC Medium, privately registers it with GDI, and builds a Unity Font
     /// via <see cref="Font.Internal_CreateDynamicFont"/> (spike-proven on this IL2CPP build).
     /// </summary>
     internal static class EmbeddedFontLoader
     {
         private const uint FrPrivate = 0x10;
-        private const string ResourceName = "FriendOverlay.Fonts.NotoSansSC-Regular.otf";
-        private const string FileName = "NotoSansSC-Regular.otf";
+        private const string ResourceName = "FriendOverlay.Fonts.NotoSansSC-Medium.otf";
+        private const string FileName = "NotoSansSC-Medium.otf";
         private const string OflResourceName = "FriendOverlay.Fonts.OFL.txt";
 
         private static string? _extractedPath;
@@ -30,7 +30,14 @@ namespace FriendOverlay.UI
                 var font = new Font();
                 Font.Internal_CreateDynamicFont(
                     font,
-                    new[] { "Noto Sans SC", "NotoSansSC-Regular", "Source Han Sans SC" },
+                    new[]
+                    {
+                        "Noto Sans SC Medium",
+                        "NotoSansSC-Medium",
+                        "Source Han Sans SC Medium",
+                        "Noto Sans SC",
+                        "Source Han Sans SC",
+                    },
                     size);
 
                 if (!LooksUsable(font, "钢铁ABC"))
@@ -96,11 +103,24 @@ namespace FriendOverlay.UI
             var otfPath = Path.Combine(dir, FileName);
             var oflPath = Path.Combine(dir, "OFL.txt");
 
-            if (!File.Exists(otfPath) || new FileInfo(otfPath).Length < 1000)
+            var needExtract = !File.Exists(otfPath) || new FileInfo(otfPath).Length < 1000;
+            if (!needExtract)
             {
-                if (!ExtractResource(ResourceName, otfPath))
-                    return false;
+                try
+                {
+                    var asm = typeof(EmbeddedFontLoader).Assembly;
+                    using var stream = asm.GetManifestResourceStream(ResourceName);
+                    if (stream != null && stream.Length != new FileInfo(otfPath).Length)
+                        needExtract = true;
+                }
+                catch
+                {
+                    // keep existing file
+                }
             }
+
+            if (needExtract && !ExtractResource(ResourceName, otfPath))
+                return false;
 
             if (!File.Exists(oflPath))
                 ExtractResource(OflResourceName, oflPath);

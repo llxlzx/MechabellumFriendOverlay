@@ -75,7 +75,7 @@ MelonPreferences 分类 `FriendOverlay`：
 - `ToggleHotkey` — 默认 `F8`
 - `Animations` — 淡入 / 脉冲 / 悬停动效开关
 - `UiScale` — UI 缩放，`0` 表示按屏幕高度自动
-- `UseGameFont` — 优先借用游戏内好友行字体（默认关闭；默认使用随包 Noto Sans SC，失败回退雅黑）
+- `UseGameFont` — 优先借用游戏内好友行字体（默认关闭；默认使用随包 Noto Sans SC Medium，失败回退雅黑）
 - `TransparentNativePanel` — 用 `CanvasGroup` 透明化原生面板而非 `SetActive(false)`（这是经过验证的隐藏路径，头像已不依赖它）
 - `CollapseJoinable` / `CollapseBusy` / `CollapseOffline` — 分区折叠状态
 - `CollapsePinned` — 置顶分区折叠状态

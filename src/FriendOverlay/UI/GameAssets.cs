@@ -12,8 +12,8 @@ namespace FriendOverlay.UI
     public static class GameAssets
     {
         /// <summary>
-        /// Opt-in. GUI.skin.font is the only font proven to carry CJK glyphs in this build, so the
-        /// overlay inherits it by default and only borrows the game font when explicitly enabled.
+        /// When true, prefer the in-game friend-row font before Noto/YaHei. When false (default),
+        /// resolve Noto → YaHei → game → GUI.skin.
         /// </summary>
         public static bool UseGameFont { get; set; }
 
@@ -26,6 +26,7 @@ namespace FriendOverlay.UI
 
         private static Font? _font;
         private static bool _fontResolved;
+        private static bool _fontLogged;
         private static bool _parityLogged;
         private static int _parityAttempts;
         private static float _nextParityAt;
@@ -36,9 +37,6 @@ namespace FriendOverlay.UI
         {
             get
             {
-                if (!UseGameFont)
-                    return null;
-
                 if (!_fontResolved)
                     ResolveFont();
 
@@ -50,6 +48,7 @@ namespace FriendOverlay.UI
         {
             _font = null;
             _fontResolved = false;
+            _fontLogged = false;
             _parityLogged = false;
             _parityAttempts = 0;
             _nextParityAt = 0f;
@@ -436,44 +435,80 @@ namespace FriendOverlay.UI
             MelonLoader.MelonLogger.Msg("[FriendOverlay] avatars " + summary);
         }
 
+        /// <summary>
+        /// Allow a second resolve after lobby cells exist (game-font borrow may have been null).
+        /// </summary>
+        public static void InvalidateFontResolve()
+        {
+            _font = null;
+            _fontResolved = false;
+        }
+
         private static void ResolveFont()
         {
             _fontResolved = true;
+            _font = null;
 
-            var cell = FindFirstCell();
-            if (cell != null)
+            Core.UiFontFaceKind kind;
+            if (UseGameFont)
             {
-                try
-                {
-                    var label = cell.nameLabel;
-                    if (label != null && label.font != null)
-                    {
-                        _font = label.font;
-                        MelonLoader.MelonLogger.Msg("[FriendOverlay] borrowed game font: " + _font.name);
-                        return;
-                    }
-                }
-                catch
-                {
-                    // fall through to OS font
-                }
+                if (TryBorrowGameFont(out _font))
+                    kind = Core.UiFontFaceKind.Game;
+                else if ((_font = EmbeddedFontLoader.TryCreateNoto()) != null)
+                    kind = Core.UiFontFaceKind.Noto;
+                else if ((_font = EmbeddedFontLoader.TryCreateYahei()) != null)
+                    kind = Core.UiFontFaceKind.YaHei;
+                else
+                    kind = Core.UiFontFaceKind.Skin;
             }
+            else if ((_font = EmbeddedFontLoader.TryCreateNoto()) != null)
+            {
+                kind = Core.UiFontFaceKind.Noto;
+            }
+            else if ((_font = EmbeddedFontLoader.TryCreateYahei()) != null)
+            {
+                kind = Core.UiFontFaceKind.YaHei;
+            }
+            else if (TryBorrowGameFont(out _font))
+            {
+                kind = Core.UiFontFaceKind.Game;
+            }
+            else
+            {
+                kind = Core.UiFontFaceKind.Skin;
+            }
+
+            if (!_fontLogged)
+            {
+                _fontLogged = true;
+                MelonLoader.MelonLogger.Msg(
+                    "[FriendOverlay] UI font face=" + kind +
+                    (_font != null ? " name=" + _font.name : " (GUI.skin)"));
+            }
+        }
+
+        private static bool TryBorrowGameFont(out Font? font)
+        {
+            font = null;
+            var cell = FindFirstCell();
+            if (cell == null)
+                return false;
 
             try
             {
-                _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei UI", 16);
-                if (_font != null)
+                var label = cell.nameLabel;
+                if (label != null && label.font != null)
                 {
-                    MelonLoader.MelonLogger.Msg("[FriendOverlay] using OS font: " + _font.name);
-                    return;
+                    font = label.font;
+                    return true;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                MelonLoader.MelonLogger.Msg("[FriendOverlay] OS font unavailable: " + ex.Message);
+                // fall through
             }
 
-            _font = null;
+            return false;
         }
 
         internal static FriendCellNode? FindFirstCell()

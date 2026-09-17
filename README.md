@@ -19,7 +19,7 @@
 - 头像加载逐级回退：本地精灵 → URL 下载 → 首字母；先画字母再把图盖上去，任何一步失败都不会留下空框
 - 跟随游戏的头像屏蔽设置：游戏判定为屏蔽的账号，叠加面板显示游戏替换后的占位图
 - 叠加打开时挂全屏透明 uGUI 挡板，点击与拖动不再穿透到背后大厅
-- 拖标题栏移动、右下角拖动缩放，位置尺寸写入偏好（关闭面板即落盘）
+- 拖标题栏移动、拖边框/四角缩放，位置尺寸写入偏好（关闭面板即落盘）
 - 分页拉全关注列表，同步状态条带脉冲指示
 - 逐功能能力探测（`inviteUserJoin / createRoom / teamInvite / followers / portrait`）：缺哪个接口只关哪个功能；整体仍 fail-open
 - 失败则 fail-open：不打补丁或异常时恢复原生 UI
@@ -75,7 +75,7 @@ MelonPreferences 分类 `FriendOverlay`：
 - `ToggleHotkey` — 默认 `F8`
 - `Animations` — 淡入 / 脉冲 / 悬停动效开关
 - `UiScale` — UI 缩放，`0` 表示按屏幕高度自动
-- `UseGameFont` — 借用游戏内字体（默认关闭，默认字体是唯一确认能渲染中文的）
+- `UseGameFont` — 优先借用游戏内好友行字体（默认关闭；默认使用随包 Noto Sans SC Medium，失败回退雅黑）
 - `TransparentNativePanel` — 用 `CanvasGroup` 透明化原生面板而非 `SetActive(false)`（这是经过验证的隐藏路径，头像已不依赖它）
 - `CollapseJoinable` / `CollapseBusy` / `CollapseOffline` — 分区折叠状态
 - `CollapsePinned` — 置顶分区折叠状态
@@ -96,7 +96,7 @@ MelonPreferences 分类 `FriendOverlay`：
 10. 关闭叠加后大厅好友入口仍在，可再次打开（连测 5 次）  
 11. 叠加打开时在面板上拖动/点击/滚轮不带动背后大厅；切原生后原生可点  
 12. 头像：滚到底都没有纯填充空框，每格要么是图要么是首字母；日志摘要 `pending=0` 时 `images + letters` 等于行数，每个字母行都有带原因的 `avatar route` 行  
-13. 拖标题栏移动、右下角缩放，重开游戏后位置尺寸保留  
+13. 拖标题栏移动、边框/四角缩放，重开游戏后位置尺寸保留  
 14. 状态条不闪烁：同步中脉冲，完成后静止  
 15. 日志无 `DrawWindow failed`、无 `MissingMethodException`  
 16. `Ctrl+L` 全列表变首字母（含中文），再按恢复且不重新下载  

@@ -68,11 +68,15 @@ namespace FriendOverlay.State
 
             ApplyModeVisibility();
             OverlayVisible = Mode == OverlayMode.Overlay;
+            LobbyPresence.NoteSessionBegan();
+            // Lobby cells may now exist; allow game-font borrow / Theme rebuild on next UiFont read.
+            UI.GameAssets.InvalidateFontResolve();
         }
 
         public static void End(bool restoreNativeLayer = true)
         {
             OverlayVisible = false;
+            LobbyPresence.NoteSessionEnded();
 
             UI.InputShield.Destroy();
 

@@ -32,6 +32,16 @@ namespace FriendOverlay.Hooks
             if (hide != null)
                 harmony.Patch(hide, postfix: new HarmonyMethod(typeof(FriendPanelHooks), nameof(HidePostfix)));
 
+            // Match loading UI often stays on MainMenu until the battle scene swaps — close as soon
+            // as MainSceneLoadingWindow opens (loading bar), not only on MainSceneDesert.
+            var loadingOpen = AccessTools.Method(typeof(MainSceneLoadingWindow), nameof(MainSceneLoadingWindow.OnOpen));
+            if (loadingOpen != null)
+            {
+                harmony.Patch(
+                    loadingOpen,
+                    postfix: new HarmonyMethod(typeof(FriendPanelHooks), nameof(MatchLoadingOpenPostfix)));
+            }
+
             // Optional: only useful when the followers surface exists at all.
             if (Capabilities.Followers)
             {
@@ -42,6 +52,25 @@ namespace FriendOverlay.Hooks
                         lastFollower,
                         postfix: new HarmonyMethod(typeof(FriendPanelHooks), nameof(LastFollowerPostfix)));
                 }
+            }
+        }
+
+        public static void MatchLoadingOpenPostfix(MainSceneLoadingWindow __instance)
+        {
+            if (OverlaySession.Degraded)
+                return;
+
+            try
+            {
+                if (OverlaySession.Panel == null && !OverlaySession.OverlayVisible)
+                    return;
+
+                MelonLogger.Msg("[FriendOverlay] leave-lobby MainSceneLoadingWindow.OnOpen → close overlay");
+                OverlaySession.End();
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning("[FriendOverlay] MatchLoadingOpenPostfix: " + ex.Message);
             }
         }
 

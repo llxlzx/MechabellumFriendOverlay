@@ -1,16 +1,22 @@
+using System;
+using System.Runtime.InteropServices;
+using FriendOverlay.Core;
 using UnityEngine;
 
 namespace FriendOverlay.UI.Widgets
 {
     /// <summary>
     /// Hand-rolled text field. GUI.TextField throws on this IL2CPP build, so typing is polled from
-    /// Input in OnUpdate (once per frame) and only rendered here.
+    /// Input in OnUpdate (once per frame) and only rendered here. An open IME composition is drawn
+    /// but not committed; when it ends, the previous composition is committed unless inputString
+    /// already carried the same suffix.
     /// </summary>
     public sealed class SearchBox
     {
         private const string Placeholder = "输入名称或 ID…";
 
         private float _caretBase;
+        private string _composition = string.Empty;
 
         public string Text { get; private set; } = string.Empty;
 
@@ -20,17 +26,22 @@ namespace FriendOverlay.UI.Widgets
         {
             Focused = true;
             _caretBase = Anim.Now;
+            Input.imeCompositionMode = IMECompositionMode.On;
         }
 
-        public void Blur() => Focused = false;
+        public void Blur()
+        {
+            Focused = false;
+            _composition = string.Empty;
+            Input.imeCompositionMode = IMECompositionMode.Auto;
+        }
 
         public void Clear() => Text = string.Empty;
 
         /// <summary>Called once per frame from OnUpdate; OnGUI can run several times per frame.</summary>
         public void HandleInput()
         {
-            if (Input.GetKeyDown(KeyCode.F) &&
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            if (Input.GetKeyDown(KeyCode.F) && CtrlHeld())
             {
                 Focus();
                 return;
@@ -38,6 +49,8 @@ namespace FriendOverlay.UI.Widgets
 
             if (!Focused)
                 return;
+
+            Input.imeCompositionMode = IMECompositionMode.On;
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -48,37 +61,25 @@ namespace FriendOverlay.UI.Widgets
                 return;
             }
 
-            if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-                Input.GetKeyDown(KeyCode.Backspace))
+            if (CtrlHeld() && Input.GetKeyDown(KeyCode.Backspace))
             {
                 Clear();
                 return;
             }
 
-            var typed = Input.inputString;
-            if (string.IsNullOrEmpty(typed))
+            if (CtrlHeld() && (Input.GetKeyDown(KeyCode.V) || Input.GetKeyDown(KeyCode.Insert)))
+            {
+                Commit(SearchText.Apply(Text, pasted: ReadClipboard()));
+                return;
+            }
+
+            // Shortcuts must not also insert the letter. Composition is handled in Advance.
+            if (CtrlHeld())
                 return;
 
-            var text = Text;
-            foreach (var ch in typed)
-            {
-                if (ch == '\b')
-                {
-                    if (text.Length > 0)
-                        text = text.Substring(0, text.Length - 1);
-                }
-                else if (ch != '\n' && ch != '\r' && !char.IsControl(ch))
-                {
-                    if (text.Length < 48)
-                        text += ch;
-                }
-            }
-
-            if (text != Text)
-            {
-                Text = text;
-                _caretBase = Anim.Now;
-            }
+            var frame = SearchText.Advance(Text, _composition, Input.compositionString, Input.inputString);
+            _composition = frame.Composition;
+            Commit(frame.Text);
         }
 
         public void Draw(Rect r)
@@ -95,21 +96,28 @@ namespace FriendOverlay.UI.Widgets
             Gfx.Fill(new Rect(iconR.xMax - 1f, iconR.yMax - 1f, Theme.S(5f), Theme.S(2f)),
                 Focused ? Theme.Accent : Theme.TextMuted);
 
+            var shown = Text;
+            if (Focused && _composition.Length > 0)
+                shown += _composition;
+
             var textR = new Rect(iconR.xMax + pad, r.y, r.width - iconR.width - pad * 3f - Theme.S(28f), r.height);
-            if (Text.Length == 0)
+            if (shown.Length == 0)
             {
                 Gfx.Text(textR, Placeholder, Theme.TextMuted, Theme.Stat);
             }
             else
             {
-                Gfx.Text(textR, Text, Theme.TextHi, Theme.Stat);
+                Gfx.Text(textR, shown, Theme.TextHi, Theme.Stat);
             }
 
-            if (Focused && Mathf.Repeat(Anim.Now - _caretBase, 1f) < 0.5f)
+            if (Focused)
             {
-                var caretX = textR.x + MeasureWidth(Text);
+                var caretX = textR.x + MeasureWidth(shown);
                 caretX = Mathf.Min(caretX, textR.xMax - 2f);
-                Gfx.Fill(new Rect(caretX + 1f, r.y + Theme.S(6f), Theme.S(2f), r.height - Theme.S(12f)), Theme.Accent);
+                // compositionCursorPos is bottom-left screen space; IMGUI y grows downward.
+                Input.compositionCursorPos = new Vector2(caretX, Screen.height - (r.y + r.height * 0.5f));
+                if (Mathf.Repeat(Anim.Now - _caretBase, 1f) < 0.5f)
+                    Gfx.Fill(new Rect(caretX + 1f, r.y + Theme.S(6f), Theme.S(2f), r.height - Theme.S(12f)), Theme.Accent);
             }
 
             if (Text.Length > 0)
@@ -133,6 +141,68 @@ namespace FriendOverlay.UI.Widgets
             }
         }
 
+        private void Commit(string next)
+        {
+            if (next == Text)
+                return;
+
+            Text = next;
+            _caretBase = Anim.Now;
+        }
+
+        private static bool CtrlHeld() =>
+            Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
+        private static string? ReadClipboard()
+        {
+            try
+            {
+                var gui = GUIUtility.systemCopyBuffer;
+                if (!string.IsNullOrEmpty(gui))
+                    return gui;
+            }
+            catch
+            {
+                // IL2CPP often leaves systemCopyBuffer empty; fall through to Win32.
+            }
+
+            return ReadWin32Clipboard();
+        }
+
+        private static string? ReadWin32Clipboard()
+        {
+            if (!OpenClipboard(IntPtr.Zero))
+                return null;
+
+            try
+            {
+                var handle = GetClipboardData(13); // CF_UNICODETEXT
+                if (handle == IntPtr.Zero)
+                    return null;
+
+                var ptr = GlobalLock(handle);
+                if (ptr == IntPtr.Zero)
+                    return null;
+
+                try
+                {
+                    return Marshal.PtrToStringUni(ptr);
+                }
+                finally
+                {
+                    GlobalUnlock(handle);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                CloseClipboard();
+            }
+        }
+
         private static float MeasureWidth(string text)
         {
             var style = Theme.Stat;
@@ -153,5 +223,20 @@ namespace FriendOverlay.UI.Widgets
                 width += ch > 0x2E80 ? Theme.S(13f) : Theme.S(7f);
             return width;
         }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool CloseClipboard();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr GetClipboardData(uint uFormat);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalLock(IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GlobalUnlock(IntPtr hMem);
     }
 }

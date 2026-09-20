@@ -133,7 +133,7 @@ namespace FriendOverlay.Data
             if (!_loggedTeamMiss)
             {
                 _loggedTeamMiss = true;
-                MelonLogger.Warning("[FriendOverlay] TeamProxy unavailable, 组队匹配 disabled for now: " + why);
+                MelonLogger.Warning("[FriendOverlay] TeamProxy unavailable, party matchmaking disabled for now: " + why);
             }
 
             return null;

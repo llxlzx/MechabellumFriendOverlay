@@ -189,10 +189,10 @@ namespace FriendOverlay.UI.Widgets
             {
                 // Unpinning stays enabled at the cap, otherwise a full set could never be reduced.
                 var pinLabel = ctx.IsPinned
-                    ? "取消置顶"
+                    ? L.T("menu.unpin")
                     : ctx.PinFull
-                        ? "置顶（已满 " + Core.PinnedIds.Max + "）"
-                        : "置顶";
+                        ? L.Tf("menu.pin_full", Core.PinnedIds.Max)
+                        : L.T("menu.pin");
                 if (MenuItem(item, pinLabel, Theme.TextMain, ctx.IsPinned || !ctx.PinFull))
                     return RowAction.TogglePin;
                 item.y += itemH;
@@ -200,12 +200,12 @@ namespace FriendOverlay.UI.Widgets
 
             if (ctx.Tab == FriendListTab.Following || row.IsMutual)
             {
-                if (MenuItem(item, "取消关注", Theme.TextMain, true))
+                if (MenuItem(item, L.T("menu.unfollow"), Theme.TextMain, true))
                     return RowAction.Unfollow;
                 item.y += itemH;
             }
 
-            if (MenuItem(item, "加入黑名单", Theme.DangerHover, true))
+            if (MenuItem(item, L.T("menu.blacklist"), Theme.DangerHover, true))
                 return RowAction.Blacklist;
 
             return RowAction.None;
@@ -267,8 +267,8 @@ namespace FriendOverlay.UI.Widgets
             {
                 var followR = new Rect(x, r.y, FollowBackWidth, r.height);
                 if (row.IsMutual)
-                    Button(followR, "⇌ 已互关", Theme.Chip, false, false);
-                else if (Button(followR, "回关", Theme.Chip, true, true))
+                    Button(followR, L.T("btn.mutual"), Theme.Chip, false, false);
+                else if (Button(followR, L.T("btn.follow_back"), Theme.Chip, true, true))
                     action = RowAction.FollowBack;
                 x += FollowBackWidth + gap;
             }
@@ -276,25 +276,25 @@ namespace FriendOverlay.UI.Widgets
             var canJoin = row.IsOnline && !row.IsBusy;
             var canWatch = row.IsOnline && row.IsBusy;
 
-            if (Button(new Rect(x, r.y, w, r.height), "加入", Theme.Chip, canJoin, ctx.Tab == FriendListTab.Following))
+            if (Button(new Rect(x, r.y, w, r.height), L.T("btn.join"), Theme.Chip, canJoin, ctx.Tab == FriendListTab.Following))
                 action = RowAction.Join;
             x += w + gap;
 
-            if (Button(new Rect(x, r.y, w, r.height), "观战", Theme.Chip, canWatch, false))
+            if (Button(new Rect(x, r.y, w, r.height), L.T("btn.watch"), Theme.Chip, canWatch, false))
                 action = RowAction.Watch;
             x += w + gap;
 
-            if (Button(new Rect(x, r.y, w, r.height), "私聊", Theme.Chip, true, false))
+            if (Button(new Rect(x, r.y, w, r.height), L.T("btn.chat"), Theme.Chip, true, false))
                 action = RowAction.Chat;
             x += w + gap;
 
             // Disabled rather than hidden, so the player can see inviting exists and learn it needs
             // a room, instead of wondering where the button went.
             var inviteLabel = ctx.InvitePending
-                ? "邀请中"
+                ? L.T("btn.inviting")
                 : ctx.InviteRecent
-                    ? "已邀请"
-                    : "邀请";
+                    ? L.T("btn.invited")
+                    : L.T("btn.invite");
             if (Button(new Rect(x, r.y, w, r.height), inviteLabel, Theme.Chip,
                     ctx.InvitePath != Core.InvitePath.Disabled && !ctx.InviteRecent, false))
                 action = RowAction.Invite;

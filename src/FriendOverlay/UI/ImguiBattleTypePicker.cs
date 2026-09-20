@@ -77,7 +77,7 @@ namespace FriendOverlay.UI
                 Gfx.Fill(new Rect(0f, titleH - Theme.S(2f), _rect.width, Theme.S(2f)), Theme.Accent);
                 Gfx.Text(
                     new Rect(pad, 0f, _rect.width - pad * 2f, titleH),
-                    "邀请 " + _name + " 参与",
+                    L.Tf("picker.title", _name),
                     Theme.TextHi,
                     Theme.Section);
 
@@ -90,9 +90,10 @@ namespace FriendOverlay.UI
                 {
                     var entry = entries[i];
                     var enabled = IsOffered(entry);
+                    var localized = L.T(entry.Label);
                     var label = enabled
-                        ? entry.Label
-                        : entry.Label + "（暂未开放）";
+                        ? localized
+                        : L.Tf("picker.unavailable", localized);
 
                     if (Btn(new Rect(pad, y, _rect.width - pad * 2f, rowH), label, Theme.Chip, enabled))
                         Pick(entry);
@@ -101,7 +102,7 @@ namespace FriendOverlay.UI
                 }
 
                 y += Theme.S(4f);
-                if (Btn(new Rect(_rect.width - pad - Theme.S(96f), y, Theme.S(96f), rowH), "取消", Theme.Chip, true))
+                if (Btn(new Rect(_rect.width - pad - Theme.S(96f), y, Theme.S(96f), rowH), L.T("btn.cancel"), Theme.Chip, true))
                     Close();
 
                 Gfx.PanelDouble(full, new Color(0f, 0f, 0f, 0f), Theme.Accent, Theme.LineDim);
@@ -149,7 +150,7 @@ namespace FriendOverlay.UI
                 {
                     _teamFailed = true;
                     MelonLoader.MelonLogger.Warning(
-                        "[FriendOverlay] 组队匹配 unavailable, that row is disabled for this session");
+                        "[FriendOverlay] Team match unavailable, that row is disabled for this session");
                 }
 
                 return;

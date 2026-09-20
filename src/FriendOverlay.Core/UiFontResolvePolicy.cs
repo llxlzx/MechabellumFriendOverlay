@@ -1,31 +1,59 @@
-namespace FriendOverlay.Core;
-
-public enum UiFontFaceKind
+namespace FriendOverlay.Core
 {
-    Skin = 0,
-    Game = 1,
-    YaHei = 2,
-    Noto = 3,
-}
-
-/// <summary>
-/// Pure ordering for which UI font face to prefer. Actual load happens in Melon UI.
-/// </summary>
-public static class UiFontResolvePolicy
-{
-    public static UiFontFaceKind Choose(bool useGameFont, bool notoOk, bool yaheiOk, bool gameOk)
+    public enum UiFontFaceKind
     {
-        if (useGameFont)
+        Skin = 0,
+        Game = 1,
+        System = 2,
+        Noto = 3,
+    }
+
+    /// <summary>
+    /// Pure ordering for which UI font face to prefer. Actual load happens in Melon UI.
+    /// </summary>
+    public static class UiFontResolvePolicy
+    {
+        /// <summary>
+        /// Language-aware order. zh-CN: Noto → System(YaHei) → Game → Skin.
+        /// Other codes: System → Noto → Game → Skin. When <paramref name="useGameFont"/>,
+        /// Game wins first if available.
+        /// </summary>
+        public static UiFontFaceKind Choose(
+            string languageCode,
+            bool useGameFont,
+            bool notoOk,
+            bool systemOk,
+            bool gameOk)
         {
-            if (gameOk) return UiFontFaceKind.Game;
-            if (notoOk) return UiFontFaceKind.Noto;
-            if (yaheiOk) return UiFontFaceKind.YaHei;
-            return UiFontFaceKind.Skin;
+            if (useGameFont)
+            {
+                if (gameOk) return UiFontFaceKind.Game;
+                return ChooseWithoutGame(languageCode, notoOk, systemOk);
+            }
+
+            var primary = ChooseWithoutGame(languageCode, notoOk, systemOk);
+            if (primary != UiFontFaceKind.Skin)
+                return primary;
+
+            return gameOk ? UiFontFaceKind.Game : UiFontFaceKind.Skin;
         }
 
-        if (notoOk) return UiFontFaceKind.Noto;
-        if (yaheiOk) return UiFontFaceKind.YaHei;
-        if (gameOk) return UiFontFaceKind.Game;
-        return UiFontFaceKind.Skin;
+        /// <summary>Legacy overload used by older call sites (zh-CN / Noto-first defaults).</summary>
+        public static UiFontFaceKind Choose(bool useGameFont, bool notoOk, bool yaheiOk, bool gameOk) =>
+            Choose("zh-CN", useGameFont, notoOk, yaheiOk, gameOk);
+
+        private static UiFontFaceKind ChooseWithoutGame(string languageCode, bool notoOk, bool systemOk)
+        {
+            if (FontSelector.PreferEmbeddedNotoFirst(languageCode))
+            {
+                if (notoOk) return UiFontFaceKind.Noto;
+                if (systemOk) return UiFontFaceKind.System;
+                return UiFontFaceKind.Skin;
+            }
+
+            if (systemOk) return UiFontFaceKind.System;
+            if (notoOk) return UiFontFaceKind.Noto;
+            return UiFontFaceKind.Skin;
+        }
     }
 }

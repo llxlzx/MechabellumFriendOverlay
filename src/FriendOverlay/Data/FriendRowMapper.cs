@@ -72,7 +72,7 @@ namespace FriendOverlay.Data
                 IsOnline = presence.Known && FriendStatusMapper.IsOnline(state),
                 IsBusy = presence.Known && FriendStatusMapper.IsBusy(state),
                 Platform = info.Platform,
-                StatusLabel = presence.Known ? FriendStatusMapper.ToLabel(state) : "状态未知",
+                StatusLabel = presence.Known ? FriendStatusMapper.ToLabel(state) : L.T("status.unknown"),
                 StatusKind = FriendStatusMapper.ToKind(state),
             };
         }

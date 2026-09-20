@@ -13,7 +13,7 @@ namespace FriendOverlay.UI.Widgets
     /// </summary>
     public sealed class SearchBox
     {
-        private const string Placeholder = "输入名称或 ID…";
+        private static string Placeholder => L.T("search.placeholder");
 
         private float _caretBase;
         private string _composition = string.Empty;

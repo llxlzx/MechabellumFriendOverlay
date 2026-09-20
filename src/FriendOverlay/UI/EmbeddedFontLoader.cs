@@ -51,17 +51,23 @@ namespace FriendOverlay.UI
             }
         }
 
-        public static Font? TryCreateYahei(int size = 16)
+        public static Font? TryCreateYahei(int size = 16) =>
+            TryCreateSystem(
+                new[] { "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "Arial" },
+                "钢铁ABC",
+                size);
+
+        public static Font? TryCreateSystem(string[] names, string probeSample, int size = 16)
         {
+            if (names == null || names.Length == 0)
+                return null;
+
             try
             {
                 var font = new Font();
-                Font.Internal_CreateDynamicFont(
-                    font,
-                    new[] { "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "Arial" },
-                    size);
+                Font.Internal_CreateDynamicFont(font, names, size);
 
-                if (!LooksUsable(font, "钢铁ABC"))
+                if (!LooksUsable(font, probeSample))
                     return null;
 
                 return font;

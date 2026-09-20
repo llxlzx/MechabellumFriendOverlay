@@ -25,6 +25,7 @@ namespace FriendOverlay.UI
         private static readonly HashSet<ulong> _announce = new HashSet<ulong>();
 
         private static Font? _font;
+        private static bool _ownsFont;
         private static bool _fontResolved;
         private static bool _fontLogged;
         private static bool _parityLogged;
@@ -46,7 +47,7 @@ namespace FriendOverlay.UI
 
         public static void Reset()
         {
-            _font = null;
+            DestroyOwnedFont();
             _fontResolved = false;
             _fontLogged = false;
             _parityLogged = false;
@@ -444,45 +445,82 @@ namespace FriendOverlay.UI
             _fontResolved = false;
         }
 
+        /// <summary>Destroy the cached Font and resolve again (language code changed).</summary>
+        public static void InvalidateFontForLanguage()
+        {
+            DestroyOwnedFont();
+            _fontResolved = false;
+            _fontLogged = false;
+        }
+
+        private static void DestroyOwnedFont()
+        {
+            if (_font == null)
+                return;
+
+            try
+            {
+                // Borrowed game fonts must not be destroyed; only OS/embedded dynamic fonts we created.
+                if (_ownsFont)
+                    UnityEngine.Object.Destroy(_font);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            _font = null;
+            _ownsFont = false;
+        }
+
         private static void ResolveFont()
         {
             _fontResolved = true;
-            _font = null;
+            DestroyOwnedFont();
 
-            Core.UiFontFaceKind kind;
-            if (UseGameFont)
+            var code = Core.LanguageResolver.Current;
+            var probe = Core.FontSelector.ProbeSample(code);
+            var systemNames = Core.FontSelector.SystemFontNames(code);
+
+            Font? noto = null;
+            Font? system = null;
+            Font? game = null;
+            var gameOk = TryBorrowGameFont(out game);
+            var notoOk = (noto = EmbeddedFontLoader.TryCreateNoto()) != null;
+            var systemOk = (system = EmbeddedFontLoader.TryCreateSystem(systemNames, probe)) != null;
+
+            var kind = Core.UiFontResolvePolicy.Choose(code, UseGameFont, notoOk, systemOk, gameOk);
+            switch (kind)
             {
-                if (TryBorrowGameFont(out _font))
-                    kind = Core.UiFontFaceKind.Game;
-                else if ((_font = EmbeddedFontLoader.TryCreateNoto()) != null)
-                    kind = Core.UiFontFaceKind.Noto;
-                else if ((_font = EmbeddedFontLoader.TryCreateYahei()) != null)
-                    kind = Core.UiFontFaceKind.YaHei;
-                else
-                    kind = Core.UiFontFaceKind.Skin;
-            }
-            else if ((_font = EmbeddedFontLoader.TryCreateNoto()) != null)
-            {
-                kind = Core.UiFontFaceKind.Noto;
-            }
-            else if ((_font = EmbeddedFontLoader.TryCreateYahei()) != null)
-            {
-                kind = Core.UiFontFaceKind.YaHei;
-            }
-            else if (TryBorrowGameFont(out _font))
-            {
-                kind = Core.UiFontFaceKind.Game;
-            }
-            else
-            {
-                kind = Core.UiFontFaceKind.Skin;
+                case Core.UiFontFaceKind.Noto:
+                    _font = noto;
+                    _ownsFont = true;
+                    if (system != null) UnityEngine.Object.Destroy(system);
+                    break;
+                case Core.UiFontFaceKind.System:
+                    _font = system;
+                    _ownsFont = true;
+                    if (noto != null) UnityEngine.Object.Destroy(noto);
+                    break;
+                case Core.UiFontFaceKind.Game:
+                    _font = game;
+                    _ownsFont = false;
+                    if (noto != null) UnityEngine.Object.Destroy(noto);
+                    if (system != null) UnityEngine.Object.Destroy(system);
+                    break;
+                default:
+                    _font = null;
+                    _ownsFont = false;
+                    if (noto != null) UnityEngine.Object.Destroy(noto);
+                    if (system != null) UnityEngine.Object.Destroy(system);
+                    break;
             }
 
             if (!_fontLogged)
             {
                 _fontLogged = true;
                 MelonLoader.MelonLogger.Msg(
-                    "[FriendOverlay] UI font face=" + kind +
+                    "[FriendOverlay] UI font lang=" + code + " face=" + kind +
                     (_font != null ? " name=" + _font.name : " (GUI.skin)"));
             }
         }

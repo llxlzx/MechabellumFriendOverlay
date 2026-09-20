@@ -176,7 +176,7 @@ namespace FriendOverlay.Data
                 proxy.RequestLastFollower();
                 IsLoading = true;
                 if (_snapshot.Count == 0)
-                    StatusText = "同步中";
+                    StatusText = L.T("status.syncing");
             }
             catch (Exception ex)
             {
@@ -233,14 +233,14 @@ namespace FriendOverlay.Data
 
             if (IsLoading && _snapshot.Count == 0)
             {
-                StatusText = "同步中";
+                StatusText = L.T("status.syncing");
                 return;
             }
 
             // Never claim a total we cannot verify: RequestLastFollower has no completion signal.
             StatusText = _snapshot.Count > 0 && known == 0
-                ? "已加载 " + _snapshot.Count + " · 状态未知"
-                : "已加载 " + _snapshot.Count;
+                ? L.Tf("status.loaded_unknown", _snapshot.Count)
+                : L.Tf("count.loaded", _snapshot.Count);
         }
 
         /// <summary>

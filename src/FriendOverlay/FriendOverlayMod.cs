@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.39", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.40", "MechabellumFriendOverlay")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -84,6 +84,7 @@ namespace FriendOverlay
             FansListService.Tick();
             ImguiFriendOverlay.UpdateInput();
             LobbyPresence.Tick();
+            I18n.OverlayLanguage.Tick();
 
             if (OverlaySession.Panel != null && Input.GetKeyDown(OverlaySession.ToggleHotkey))
                 OverlaySession.ToggleMode();

@@ -33,14 +33,14 @@ namespace FriendOverlay.UI
             public float Height;
         }
 
-        private const string FollowingLabel = "关注";
-        private const string FollowersLabel = "关注我的人";
-
         private static readonly SearchBox _search = new SearchBox();
         private static readonly ScrollBar _scroll = new ScrollBar();
         private static readonly List<ListItem> _items = new List<ListItem>();
         private static IReadOnlyList<FriendRowVm> _view = new List<FriendRowVm>();
         private static int _viewFrame = -1;
+
+        private static string FollowingLabel => L.T("tab.following");
+        private static string FollowersLabel => L.T("tab.followers");
 
         private static FriendFilter _filter = FriendFilter.All;
         private static FriendSortKey _sort = FriendSortKey.Default;
@@ -303,7 +303,7 @@ namespace FriendOverlay.UI
             var cut = Theme.S(6f);
             Gfx.Chamfer(r, hovered ? Theme.ChipHover : Theme.TitleBar, cut);
             Gfx.ChamferBorder(r, hovered ? Theme.Accent : Theme.Line, cut);
-            Gfx.Text(r, "打开叠加面板  ·  " + HotkeyName, Theme.TextHi, Theme.Button);
+            Gfx.Text(r, L.Tf("launcher.open", HotkeyName), Theme.TextHi, Theme.Button);
 
             if (NativeChipClicked(r))
                 OverlaySession.ToggleMode();
@@ -419,20 +419,20 @@ namespace FriendOverlay.UI
             var btnW = Theme.S(76f);
             var x = bar.width - pad - btnW;
 
-            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), "关闭", Theme.Danger))
+            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), L.T("btn.close"), Theme.Danger))
                 FriendActions.ClosePanel();
             x -= btnW + gap;
-            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), "原生面板", Theme.Chip))
+            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), L.T("btn.native"), Theme.Chip))
                 OverlaySession.ToggleMode();
             x -= btnW + gap;
-            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), "刷新", Theme.Chip))
+            if (ChromeButton(new Rect(x, ctrlY, btnW, ctrlH), L.T("btn.refresh"), Theme.Chip))
                 RefreshActive();
 
             // RequestLastFollower reports no total and no completion, so this tab counts what it has
             // rather than implying the list is whole.
             var countText = Tab == FriendListTab.Followers
-                ? "已加载 " + Math.Max(FansListService.Snapshot.Count, shown)
-                : "已关注 " + Math.Max(FriendListService.TotalFollowCount, shown);
+                ? L.Tf("count.loaded", Math.Max(FansListService.Snapshot.Count, shown))
+                : L.Tf("count.following", Math.Max(FriendListService.TotalFollowCount, shown));
 
             // Right-aligned against the action group, well clear of the tabs it used to crowd.
             var countLeft = strip.xMax + Theme.S(16f);
@@ -467,7 +467,7 @@ namespace FriendOverlay.UI
             }
 
             var sortR = new Rect(r.xMax - sortW, r.y, sortW, r.height);
-            if (ChromeButton(sortR, "排序 · " + SortLabel(_sort), Theme.Chip))
+            if (ChromeButton(sortR, L.Tf("sort.prefix", SortLabel(_sort)), Theme.Chip))
                 CycleSort();
         }
 
@@ -484,14 +484,14 @@ namespace FriendOverlay.UI
                 true);
 
             var text = Tab == FriendListTab.Followers ? FansListService.StatusText : FriendListService.StatusText;
-            var status = string.IsNullOrEmpty(text) ? "准备中" : text;
+            var status = string.IsNullOrEmpty(text) ? L.T("status.ready") : text;
 
             // Two halves rather than overlapping bands, so the counts cannot run into the status.
             var textX = r.x + Theme.S(16f);
             var half = (r.xMax - textX) * 0.5f;
             Gfx.Text(new Rect(textX, r.y, half, r.height), status, Theme.TextMuted, Theme.Meta);
             Gfx.Text(new Rect(textX + half, r.y, half, r.height),
-                "显示 " + shown + " / " + loaded,
+                L.Tf("status.showing", shown, loaded),
                 Theme.TextMuted,
                 Theme.MetaRight);
         }
@@ -501,8 +501,8 @@ namespace FriendOverlay.UI
             Gfx.Fill(r, Theme.Bg1);
             Gfx.Fill(new Rect(r.x, r.y, r.width, 1f), Theme.LineDim);
             Gfx.Text(new Rect(pad, r.y, r.width - pad * 2f - Theme.S(20f), r.height),
-                "拖动标题栏移动  ·  边框单向缩放 / 四角整体缩放  ·  ⋯/右键 更多操作  ·  邀请可选战斗类型  ·  " + HotkeyName + " 原生面板  ·  Ctrl+F 搜索  ·  R 刷新  ·  Esc 关闭菜单" +
-                (RowCard.ForceLetters ? "  ·  Ctrl+L 字母模式（诊断）" : string.Empty),
+                L.Tf("footer.help", HotkeyName) +
+                (RowCard.ForceLetters ? L.T("footer.letters") : string.Empty),
                 Theme.TextMuted,
                 Theme.Meta);
 
@@ -554,8 +554,8 @@ namespace FriendOverlay.UI
                 _avatarPriorityIds.Clear();
                 _avatarPriorityFrame = Time.frameCount;
                 var msg = Tab == FriendListTab.Followers
-                    ? (FansListService.IsLoading || totalLoaded == 0 ? "正在拉取关注我的人…" : "没有符合条件的玩家")
-                    : (totalLoaded == 0 ? "正在拉取关注列表…" : "没有符合条件的好友");
+                    ? (FansListService.IsLoading || totalLoaded == 0 ? L.T("empty.loading_followers") : L.T("empty.no_players"))
+                    : (totalLoaded == 0 ? L.T("empty.loading_following") : L.T("empty.no_friends"));
                 Gfx.Text(new Rect(inner.x, inner.y + Theme.S(24f), inner.width, Theme.S(28f)), msg, Theme.TextMuted, Theme.Stat);
                 return;
             }
@@ -805,11 +805,11 @@ namespace FriendOverlay.UI
                     break;
                 case RowAction.Unfollow:
                     _menuRowId = 0;
-                    ImguiConfirm.Ask("取消关注", "确认取消关注 " + row.Name + " ？", () => FriendActions.Unfollow(row));
+                    ImguiConfirm.Ask(L.T("confirm.unfollow_title"), L.Tf("confirm.unfollow_body", row.Name), () => FriendActions.Unfollow(row));
                     break;
                 case RowAction.Blacklist:
                     _menuRowId = 0;
-                    ImguiConfirm.Ask("加入黑名单", "确认拉黑 " + row.Name + " ？", () => FriendActions.Blacklist(row));
+                    ImguiConfirm.Ask(L.T("confirm.blacklist_title"), L.Tf("confirm.blacklist_body", row.Name), () => FriendActions.Blacklist(row));
                     break;
             }
         }
@@ -1002,10 +1002,10 @@ namespace FriendOverlay.UI
 
         private static string SortLabel(FriendSortKey key) => key switch
         {
-            FriendSortKey.Name => "名称 A-Z",
-            FriendSortKey.RankPoint => "战力 ↓",
-            FriendSortKey.ForecastPoint => "洞察 ↓",
-            _ => "状态",
+            FriendSortKey.Name => L.T("sort.name"),
+            FriendSortKey.RankPoint => L.T("sort.rank"),
+            FriendSortKey.ForecastPoint => L.T("sort.forecast"),
+            _ => L.T("sort.status"),
         };
     }
 }

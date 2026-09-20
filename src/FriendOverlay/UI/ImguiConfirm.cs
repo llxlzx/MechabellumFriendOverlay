@@ -74,10 +74,10 @@ namespace FriendOverlay.UI
                 var btnH = Theme.S(32f);
                 var btnY = _rect.height - btnH - Theme.S(16f);
 
-                if (Btn(new Rect(_rect.width - btnW * 2f - pad - Theme.S(10f), btnY, btnW, btnH), "取消", Theme.Chip))
+                if (Btn(new Rect(_rect.width - btnW * 2f - pad - Theme.S(10f), btnY, btnW, btnH), Core.L.T("btn.cancel"), Theme.Chip))
                     Close();
 
-                if (Btn(new Rect(_rect.width - btnW - pad, btnY, btnW, btnH), "确认", Theme.Danger))
+                if (Btn(new Rect(_rect.width - btnW - pad, btnY, btnW, btnH), Core.L.T("btn.confirm"), Theme.Danger))
                 {
                     var cb = _onYes;
                     Close();

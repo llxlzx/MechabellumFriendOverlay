@@ -64,15 +64,15 @@ namespace FriendOverlay.Core
         // docs/superpowers/plans/2026-09-10-invite-trace-table.md for the log lines.
         private static readonly BattleType[] _entries =
         {
-            Room(BattleTypeKind.Vs1v1, "1对1", 0, 0),
-            Room(BattleTypeKind.Vs2v2, "2对2", 0, 1),
+            Room(BattleTypeKind.Vs1v1, "battle.vs1v1", 0, 0),
+            Room(BattleTypeKind.Vs2v2, "battle.vs2v2", 0, 1),
             // Survive pairs with VS_2_2, not VS_1_1, which is why this table had to be captured.
-            Room(BattleTypeKind.Survive, "生存模式", 3, 1),
+            Room(BattleTypeKind.Survive, "battle.survive", 3, 1),
             // Creates no room at all: the native button only calls TeamProxy.RequestTeamInvite.
-            new BattleType(BattleTypeKind.TeamMatch, "组队匹配", NoRoomMode, NoRoomMode, true, true),
-            Room(BattleTypeKind.Scuffle4, "4人混战", 0, 2),
-            Room(BattleTypeKind.Rift1v1, "时空裂隙 1V1", 4, 0),
-            Room(BattleTypeKind.Rift2v2, "时空裂隙 2V2", 4, 1),
+            new BattleType(BattleTypeKind.TeamMatch, "battle.team", NoRoomMode, NoRoomMode, true, true),
+            Room(BattleTypeKind.Scuffle4, "battle.scuffle4", 0, 2),
+            Room(BattleTypeKind.Rift1v1, "battle.rift1v1", 4, 0),
+            Room(BattleTypeKind.Rift2v2, "battle.rift2v2", 4, 1),
         };
 
         private static readonly IList<BattleType> _readOnly = System.Array.AsReadOnly(_entries);

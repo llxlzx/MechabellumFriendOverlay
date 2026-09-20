@@ -10,23 +10,23 @@ namespace FriendOverlay.Data
         {
             return state switch
             {
-                (int)EPlayerState.Idle => "空闲",
-                (int)EPlayerState.Battle1V1 => "1V1对战",
-                (int)EPlayerState.Battle2V2 => "2V2对战",
-                (int)EPlayerState.BattleSurvive => "生存战",
-                (int)EPlayerState.BattleSurvive2V2 => "生存2V2",
+                (int)EPlayerState.Idle => L.T("state.idle"),
+                (int)EPlayerState.Battle1V1 => L.T("state.1v1"),
+                (int)EPlayerState.Battle2V2 => L.T("state.2v2"),
+                (int)EPlayerState.BattleSurvive => L.T("state.survive"),
+                (int)EPlayerState.BattleSurvive2V2 => L.T("state.survive2v2"),
                 // Native invite button / CreateRoom path: BtnChaosFactionOnClicked → VS_4_Scuffle.
-                (int)EPlayerState.BattleChaosFaction => "4人混战",
-                (int)EPlayerState.BattleDimensionalRift => "时空裂隙",
-                (int)EPlayerState.BattleDimensionalRift2 => "时空裂隙2",
-                (int)EPlayerState.BattleLevel => "关卡",
-                (int)EPlayerState.BattleGuider => "指挥学院",
-                (int)EPlayerState.MultiBattleWatch => "观战中",
-                (int)EPlayerState.CustomRoom => "自定义房间",
-                (int)EPlayerState.CompetitionBattle => "比赛中",
-                (int)EPlayerState.CompetitionIdle => "等待比赛中",
-                (int)EPlayerState.Offline => "离线",
-                _ => "状态" + state,
+                (int)EPlayerState.BattleChaosFaction => L.T("state.scuffle4"),
+                (int)EPlayerState.BattleDimensionalRift => L.T("state.rift"),
+                (int)EPlayerState.BattleDimensionalRift2 => L.T("state.rift2"),
+                (int)EPlayerState.BattleLevel => L.T("state.level"),
+                (int)EPlayerState.BattleGuider => L.T("state.guider"),
+                (int)EPlayerState.MultiBattleWatch => L.T("state.watch"),
+                (int)EPlayerState.CustomRoom => L.T("state.custom"),
+                (int)EPlayerState.CompetitionBattle => L.T("state.comp_battle"),
+                (int)EPlayerState.CompetitionIdle => L.T("state.comp_idle"),
+                (int)EPlayerState.Offline => L.T("state.offline"),
+                _ => L.Tf("status.state_n", state),
             };
         }
 

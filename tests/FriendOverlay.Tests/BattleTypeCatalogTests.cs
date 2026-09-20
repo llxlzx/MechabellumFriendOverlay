@@ -28,7 +28,16 @@ public class BattleTypeCatalogTests
     {
         Assert.Equal(WindowOrder, BattleTypeCatalog.Entries.Select(e => e.Kind).ToArray());
         Assert.Equal(
-            new[] { "1对1", "2对2", "生存模式", "组队匹配", "4人混战", "时空裂隙 1V1", "时空裂隙 2V2" },
+            new[]
+            {
+                "battle.vs1v1",
+                "battle.vs2v2",
+                "battle.survive",
+                "battle.team",
+                "battle.scuffle4",
+                "battle.rift1v1",
+                "battle.rift2v2",
+            },
             BattleTypeCatalog.Entries.Select(e => e.Label).ToArray());
     }
 

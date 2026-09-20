@@ -168,11 +168,13 @@ namespace FriendOverlay.Data
             if (denom > 0 && loaded >= denom)
             {
                 _pagingActive = false;
-                StatusText = "已同步 " + loaded + "/" + denom;
+                StatusText = L.Tf("status.synced_n", loaded, denom);
                 return;
             }
 
-            StatusText = (_pagingActive ? "同步中 " : "已同步 ") + loaded + "/" + denom;
+            StatusText = _pagingActive
+                ? L.Tf("status.syncing_n", loaded, denom)
+                : L.Tf("status.synced_n", loaded, denom);
         }
 
         private static void TryRequestPages(bool force)

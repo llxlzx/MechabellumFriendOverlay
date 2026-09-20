@@ -7,7 +7,7 @@
     <AssemblyName>FriendOverlay</AssemblyName>
     <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
          de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
-    <Version>0.3.39</Version>
+    <Version>0.3.40</Version>
     <RootNamespace>FriendOverlay</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -43,6 +43,10 @@
     <Compile Include="..\FriendOverlay.Core\WindowResizeMath.cs" Link="Core\WindowResizeMath.cs" />
     <Compile Include="..\FriendOverlay.Core\UiFontResolvePolicy.cs" Link="Core\UiFontResolvePolicy.cs" />
     <Compile Include="..\FriendOverlay.Core\SearchText.cs" Link="Core\SearchText.cs" />
+    <Compile Include="..\FriendOverlay.Core\LanguageResolver.cs" Link="Core\LanguageResolver.cs" />
+    <Compile Include="..\FriendOverlay.Core\FontSelector.cs" Link="Core\FontSelector.cs" />
+    <Compile Include="..\FriendOverlay.Core\UiCatalog.cs" Link="Core\UiCatalog.cs" />
+    <Compile Include="..\FriendOverlay.Core\L.cs" Link="Core\L.cs" />
   </ItemGroup>
 
   <ItemGroup>

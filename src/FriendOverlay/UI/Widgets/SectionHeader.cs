@@ -9,10 +9,10 @@ namespace FriendOverlay.UI.Widgets
 
         public static string TitleOf(FriendSectionKind kind) => kind switch
         {
-            FriendSectionKind.Pinned => "置顶",
-            FriendSectionKind.OnlineJoinable => "在线 · 可加入",
-            FriendSectionKind.OnlineBusy => "在线 · 对战中",
-            _ => "离线",
+            FriendSectionKind.Pinned => L.T("section.pinned"),
+            FriendSectionKind.OnlineJoinable => L.T("section.joinable"),
+            FriendSectionKind.OnlineBusy => L.T("section.busy"),
+            _ => L.T("section.offline"),
         };
 
         public static Color ColorOf(FriendSectionKind kind) => kind switch

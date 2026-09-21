@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.40", "MechabellumFriendOverlay")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.40", "llxmod")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay

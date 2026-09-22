@@ -66,6 +66,8 @@ namespace FriendOverlay.Data
                 FrameRef = plan.FrameRef,
                 RankPoint = info.RankPoint,
                 ForecastPoint = info.ForecastPoint,
+                AsyncPoint1V1 = info.AsyncPoint1V1,
+                AsyncPoint2V2 = info.AsyncPoint2V2,
                 State = state,
                 IsMutual = info.IsMutual,
                 StateKnown = presence.Known,

@@ -136,6 +136,8 @@ namespace FriendOverlay.Core
             ["state.custom"] = "自定义房间",
             ["state.comp_battle"] = "比赛中",
             ["state.comp_idle"] = "等待比赛中",
+            ["state.async1v1"] = "异步1V1",
+            ["state.async2v2"] = "异步2V2",
             ["state.offline"] = "离线",
         };
 
@@ -220,6 +222,8 @@ namespace FriendOverlay.Core
             ["state.custom"] = "Custom room",
             ["state.comp_battle"] = "In match",
             ["state.comp_idle"] = "Waiting for match",
+            ["state.async1v1"] = "Async 1v1",
+            ["state.async2v2"] = "Async 2v2",
             ["state.offline"] = "Offline",
         };
 
@@ -304,6 +308,8 @@ namespace FriendOverlay.Core
             ["state.custom"] = "Своя комната",
             ["state.comp_battle"] = "В матче",
             ["state.comp_idle"] = "Ждёт матч",
+            ["state.async1v1"] = "Асинхр. 1v1",
+            ["state.async2v2"] = "Асинхр. 2v2",
             ["state.offline"] = "Не в сети",
         };
 
@@ -388,6 +394,8 @@ namespace FriendOverlay.Core
             ["state.custom"] = "カスタム部屋",
             ["state.comp_battle"] = "試合中",
             ["state.comp_idle"] = "試合待ち",
+            ["state.async1v1"] = "非同期1v1",
+            ["state.async2v2"] = "非同期2v2",
             ["state.offline"] = "オフライン",
         };
 
@@ -472,6 +480,8 @@ namespace FriendOverlay.Core
             ["state.custom"] = "Custom-Raum",
             ["state.comp_battle"] = "Im Match",
             ["state.comp_idle"] = "Wartet auf Match",
+            ["state.async1v1"] = "Async 1v1",
+            ["state.async2v2"] = "Async 2v2",
             ["state.offline"] = "Offline",
         };
     }

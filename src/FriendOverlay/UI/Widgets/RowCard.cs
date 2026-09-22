@@ -445,7 +445,22 @@ namespace FriendOverlay.UI.Widgets
             Gfx.Diamond(new Vector2(x + iconSize * 0.5f, y), Theme.S(5f), Theme.TextMuted, false);
             x += iconSize + Theme.S(8f);
 
-            Gfx.Text(new Rect(x, r.y, r.xMax - x, r.height), FormatNum(row.ForecastPoint), Theme.TextMain, Theme.Stat);
+            Gfx.Text(new Rect(x, r.y, powerW, r.height), FormatNum(row.ForecastPoint), Theme.TextMain, Theme.Stat);
+            x += powerW + Theme.S(8f);
+
+            DrawTaggedStat(ref x, r, "1v1", row.AsyncPoint1V1);
+            DrawTaggedStat(ref x, r, "2v2", row.AsyncPoint2V2);
+        }
+
+        static void DrawTaggedStat(ref float x, Rect r, string tag, int value)
+        {
+            var text = tag + " " + FormatNum(value);
+            var width = Theme.S(7f) * text.Length + Theme.S(6f);
+            if (x + width > r.xMax)
+                return;
+
+            Gfx.Text(new Rect(x, r.y, width, r.height), text, Theme.TextMuted, Theme.Stat);
+            x += width + Theme.S(6f);
         }
     }
 }

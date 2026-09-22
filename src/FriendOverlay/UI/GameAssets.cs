@@ -535,9 +535,10 @@ namespace FriendOverlay.UI
             try
             {
                 var label = cell.nameLabel;
-                if (label != null && label.font != null)
+                var ugui = label != null ? label.textUGUI : null;
+                if (ugui != null && ugui.font != null)
                 {
-                    font = label.font;
+                    font = ugui.font;
                     return true;
                 }
             }

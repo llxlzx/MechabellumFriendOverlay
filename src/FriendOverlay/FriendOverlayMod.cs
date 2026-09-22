@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.40", "llxmod")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.41", "llxmod")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -38,6 +38,7 @@ namespace FriendOverlay
         {
             LoadPreferences();
             OverlaySession.PersistPreferences = SavePreferences;
+            WarnIfPlayerStateDrifted();
 
             var probe = TypeProbe.Probe();
             if (!probe.Ok)
@@ -64,6 +65,24 @@ namespace FriendOverlay
                 LoggerInstance.Error("Harmony patch failed; fail-open. " + ex);
                 return;
             }
+        }
+
+        static void WarnIfPlayerStateDrifted()
+        {
+            var offline = (int)Il2CppProtos.Common.EPlayerState.Offline;
+            var async1 = (int)Il2CppProtos.Common.EPlayerState.AsyncBattle1V1;
+            var async2 = (int)Il2CppProtos.Common.EPlayerState.AsyncBattle2V2;
+            if (offline == PlayerStateCatalog.Offline
+                && async1 == PlayerStateCatalog.AsyncBattle1V1
+                && async2 == PlayerStateCatalog.AsyncBattle2V2)
+                return;
+
+            MelonLogger.Error(
+                "EPlayerState drifted from PlayerStateCatalog. Game offline="
+                + offline + " async1=" + async1 + " async2=" + async2
+                + ". Catalog offline=" + PlayerStateCatalog.Offline
+                + " async1=" + PlayerStateCatalog.AsyncBattle1V1
+                + " async2=" + PlayerStateCatalog.AsyncBattle2V2);
         }
 
         public override void OnUpdate()

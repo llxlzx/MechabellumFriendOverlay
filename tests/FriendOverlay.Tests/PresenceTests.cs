@@ -4,7 +4,7 @@ using Xunit;
 namespace FriendOverlay.Tests
 {
     /// <summary>
-    /// The game's EPlayerState has Idle = 0 and Offline = 14, so an unreported state defaults to
+    /// The game's EPlayerState has Idle = 0 and Offline = 16, so an unreported state defaults to
     /// "idle and joinable" rather than to "offline". Every list that cannot vouch for its own State
     /// field has to say so, otherwise strangers show up as joinable and 邀请 / 加入 light up for
     /// players who may well be offline.
@@ -13,7 +13,7 @@ namespace FriendOverlay.Tests
     {
         private const int Idle = 0;
         private const int Battle = 1;
-        private const int Offline = 14;
+        private const int Offline = 16;
 
         [Fact]
         public void Resolve_ReportedStateWins()

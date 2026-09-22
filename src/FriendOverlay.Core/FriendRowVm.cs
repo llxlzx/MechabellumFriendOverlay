@@ -22,6 +22,8 @@ namespace FriendOverlay.Core
 
         public int RankPoint { get; set; }
         public int ForecastPoint { get; set; }
+        public int AsyncPoint1V1 { get; set; }
+        public int AsyncPoint2V2 { get; set; }
         public int State { get; set; }
         public bool IsMutual { get; set; }
         public bool IsOnline { get; set; }

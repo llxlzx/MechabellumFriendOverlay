@@ -30,4 +30,20 @@ public class QuitStallGuardTests
         Assert.False(decision.ForceExit);
         Assert.Equal(0, decision.DelayMs);
     }
+
+    [Fact]
+    public void Quit_Marker_Is_Detected_In_A_Log_Tail()
+    {
+        var marker = System.Text.Encoding.ASCII.GetBytes("x OnApplicationWantsToQuit y");
+        Assert.True(QuitStallGuard.TailHasQuitMarker(marker, marker.Length));
+    }
+
+    [Fact]
+    public void Older_Log_Text_Without_The_Marker_Does_Not_Arm()
+    {
+        var text = System.Text.Encoding.ASCII.GetBytes("shut down finish");
+        Assert.False(QuitStallGuard.TailHasQuitMarker(text, text.Length));
+        Assert.False(QuitStallGuard.TailHasQuitMarker(text, 0));
+        Assert.False(QuitStallGuard.TailHasQuitMarker(null!, 4));
+    }
 }

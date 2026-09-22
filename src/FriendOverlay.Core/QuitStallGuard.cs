@@ -1,3 +1,5 @@
+using System;
+
 namespace FriendOverlay.Core
 {
     /// <summary>
@@ -15,9 +17,14 @@ namespace FriendOverlay.Core
         public const int StuckCallbackFuseMs = 12000;
 
         /// <summary>
-        /// After the game has accepted quit, how long to wait for a normal process exit.
+        /// Written by the game only on the path that accepts quit, immediately before it can stall.
         /// </summary>
-        public const int AcceptedQuitGraceMs = 4000;
+        public const string QuitMarker = "OnApplicationWantsToQuit";
+
+        /// <summary>
+        /// After that marker is on disk, how long to wait for a normal process exit.
+        /// </summary>
+        public const int AcceptedQuitGraceMs = 2000;
 
         public readonly struct Decision
         {
@@ -42,6 +49,32 @@ namespace FriendOverlay.Core
                 return new Decision(false, 0);
 
             return new Decision(true, AcceptedQuitGraceMs);
+        }
+
+        public static bool TailHasQuitMarker(byte[] data, int count)
+        {
+            if (data == null || count <= 0)
+                return false;
+
+            var marker = System.Text.Encoding.ASCII.GetBytes(QuitMarker);
+            var limit = Math.Min(count, data.Length) - marker.Length;
+            for (var i = 0; i <= limit; i++)
+            {
+                var match = true;
+                for (var j = 0; j < marker.Length; j++)
+                {
+                    if (data[i + j] != marker[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                    return true;
+            }
+
+            return false;
         }
     }
 }

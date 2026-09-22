@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.41", "llxmod")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.42", "llxmod")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -39,6 +39,14 @@ namespace FriendOverlay
             LoadPreferences();
             OverlaySession.PersistPreferences = SavePreferences;
             WarnIfPlayerStateDrifted();
+            try
+            {
+                QuitStallHooks.Apply(HarmonyInstance);
+            }
+            catch (System.Exception ex)
+            {
+                LoggerInstance.Warning("quit stall guard not installed: " + ex.Message);
+            }
 
             var probe = TypeProbe.Probe();
             if (!probe.Ok)

@@ -7,7 +7,7 @@
     <AssemblyName>FriendOverlay</AssemblyName>
     <!-- Without this every build shares assembly identity 1.0.0.0 and MelonLoader silently
          de-duplicates copies left in Mods\, so a stale DLL can win over a fresh one. -->
-    <Version>0.3.41</Version>
+    <Version>0.3.42</Version>
     <RootNamespace>FriendOverlay</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -23,6 +23,7 @@
     <Compile Include="..\FriendOverlay.Core\FriendQueryPipeline.cs" Link="Core\FriendQueryPipeline.cs" />
     <Compile Include="..\FriendOverlay.Core\FriendStatusKind.cs" Link="Core\FriendStatusKind.cs" />
     <Compile Include="..\FriendOverlay.Core\PlayerStateCatalog.cs" Link="Core\PlayerStateCatalog.cs" />
+    <Compile Include="..\FriendOverlay.Core\QuitStallGuard.cs" Link="Core\QuitStallGuard.cs" />
     <Compile Include="..\FriendOverlay.Core\FriendSection.cs" Link="Core\FriendSection.cs" />
     <Compile Include="..\FriendOverlay.Core\InviteRules.cs" Link="Core\InviteRules.cs" />
     <Compile Include="..\FriendOverlay.Core\PendingInviteState.cs" Link="Core\PendingInviteState.cs" />

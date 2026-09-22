@@ -2,55 +2,23 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using FriendOverlay.Core;
-using HarmonyLib;
 using MelonLoader;
 
 namespace FriendOverlay.Hooks
 {
     /// <summary>
     /// Steam stays in-game until Mechabellum.exe exits. The game logs
-    /// OnApplicationWantsToQuit and then stalls inside that callback, so a Harmony
-    /// postfix on the callback itself never runs. A side thread watches the player
-    /// log for that line and ends the process.
+    /// OnApplicationWantsToQuit and then stalls inside that callback, so a new
+    /// thread started from the callback never runs. This watcher is started at
+    /// load, and it is the thread that ends the process.
     /// </summary>
     public static class QuitStallHooks
     {
-        private static int _generation;
-        private static int _armed;
-
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
 
-        public static void Apply(HarmonyLib.Harmony harmony)
+        public static void Apply()
         {
-            try
-            {
-                var type = AccessTools.TypeByName("Il2CppGameRiver.GameLauncher");
-                var method = AccessTools.Method(type, "OnApplicationWantsToQuit");
-                if (method != null)
-                {
-                    harmony.Patch(
-                        method,
-                        prefix: new HarmonyMethod(typeof(QuitStallHooks), nameof(Prefix)),
-                        postfix: new HarmonyMethod(typeof(QuitStallHooks), nameof(Postfix)));
-                }
-
-                var debug = AccessTools.TypeByName("UnityEngine.Debug");
-                if (debug != null)
-                {
-                    foreach (var logWarning in AccessTools.GetDeclaredMethods(debug))
-                    {
-                        if (logWarning.Name != "LogWarning")
-                            continue;
-                        harmony.Patch(logWarning, postfix: new HarmonyMethod(typeof(QuitStallHooks), nameof(LogWarningPostfix)));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MelonLogger.Warning("[FriendOverlay] quit stall hooks: " + ex.Message);
-            }
-
             var watcher = new Thread(WatchPlayerLog)
             {
                 IsBackground = true,
@@ -58,28 +26,6 @@ namespace FriendOverlay.Hooks
             };
             watcher.Start();
             MelonLogger.Msg("[FriendOverlay] quit stall guard installed");
-        }
-
-        public static void Prefix()
-        {
-            var generation = Interlocked.Increment(ref _generation);
-            Schedule(generation, QuitStallGuard.OnEnter());
-        }
-
-        public static void Postfix(bool __result)
-        {
-            var generation = Interlocked.Increment(ref _generation);
-            Schedule(generation, QuitStallGuard.OnReturned(__result));
-        }
-
-        public static void LogWarningPostfix(object[] __args)
-        {
-            if (__args == null || __args.Length == 0 || __args[0] == null)
-                return;
-
-            var text = __args[0].ToString();
-            if (text != null && text.IndexOf(QuitStallGuard.QuitMarker, StringComparison.Ordinal) >= 0)
-                ArmFromQuitMarker();
         }
 
         private static void WatchPlayerLog()
@@ -113,8 +59,14 @@ namespace FriendOverlay.Hooks
                     }
 
                     offset = length;
-                    if (QuitStallGuard.TailHasQuitMarker(buffer, count))
-                        ArmFromQuitMarker();
+                    if (!QuitStallGuard.TailHasQuitMarker(buffer, count))
+                        continue;
+
+                    Note("quit marker seen");
+                    Thread.Sleep(QuitStallGuard.AcceptedQuitGraceMs);
+                    Note("ending process");
+                    EndGameProcess();
+                    return;
                 }
                 catch
                 {
@@ -123,61 +75,14 @@ namespace FriendOverlay.Hooks
             }
         }
 
-        private static void ArmFromQuitMarker()
-        {
-            if (Interlocked.Exchange(ref _armed, 1) != 0)
-                return;
-
-            Note("quit marker seen");
-            var thread = new Thread(() =>
-            {
-                Thread.Sleep(QuitStallGuard.AcceptedQuitGraceMs);
-                Note("ending process");
-                EndGameProcess();
-            })
-            {
-                IsBackground = true,
-                Name = "FriendOverlay.QuitStall"
-            };
-            thread.Start();
-        }
-
-        private static void Schedule(int generation, QuitStallGuard.Decision decision)
-        {
-            if (!decision.ForceExit)
-                return;
-
-            var thread = new Thread(() =>
-            {
-                Thread.Sleep(decision.DelayMs);
-                if (Volatile.Read(ref _generation) != generation)
-                    return;
-
-                Note("harmony quit stall");
-                EndGameProcess();
-            })
-            {
-                IsBackground = true,
-                Name = "FriendOverlay.QuitStallHarmony"
-            };
-            thread.Start();
-        }
-
         private static void EndGameProcess()
         {
             try
             {
-                var self = Process.GetCurrentProcess();
-                var gameDir = Path.GetDirectoryName(self.MainModule?.FileName);
                 foreach (var handler in Process.GetProcessesByName("UnityCrashHandler64"))
                 {
                     try
                     {
-                        var handlerPath = handler.MainModule?.FileName;
-                        if (string.IsNullOrEmpty(gameDir) || string.IsNullOrEmpty(handlerPath))
-                            continue;
-                        if (!handlerPath.StartsWith(gameDir, StringComparison.OrdinalIgnoreCase))
-                            continue;
                         handler.Kill();
                     }
                     catch
@@ -188,7 +93,7 @@ namespace FriendOverlay.Hooks
             }
             catch
             {
-                // Reading the module path can fail during teardown. Still end this process.
+                // Listing processes can fail during teardown. Still end this process.
             }
 
             TerminateProcess(Process.GetCurrentProcess().Handle, 0);

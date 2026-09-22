@@ -22,9 +22,10 @@ namespace FriendOverlay.Core
         public const string QuitMarker = "OnApplicationWantsToQuit";
 
         /// <summary>
-        /// After that marker is on disk, how long to wait for a normal process exit.
+        /// No delay. A sleep after the marker lets the quit callback freeze managed
+        /// threads, including the watcher, so the process never gets ended.
         /// </summary>
-        public const int AcceptedQuitGraceMs = 2000;
+        public const int AcceptedQuitGraceMs = 0;
 
         public readonly struct Decision
         {

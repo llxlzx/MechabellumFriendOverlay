@@ -14,7 +14,7 @@ public class QuitStallGuardTests
     }
 
     [Fact]
-    public void Accepted_Quit_Forces_Exit_After_A_Short_Grace()
+    public void Accepted_Quit_Forces_Exit_Immediately()
     {
         var decision = QuitStallGuard.OnReturned(quitAllowed: true);
 

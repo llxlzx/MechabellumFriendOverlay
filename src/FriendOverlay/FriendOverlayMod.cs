@@ -7,7 +7,7 @@ using FriendOverlay.UI;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.44", "llxmod")]
+[assembly: MelonInfo(typeof(FriendOverlay.FriendOverlayMod), "FriendOverlay", "0.3.45", "llxmod")]
 [assembly: MelonGame("GameRiver", "Mechabellum")]
 
 namespace FriendOverlay
@@ -134,6 +134,7 @@ namespace FriendOverlay
         {
             SavePreferences();
             EmbeddedFontLoader.ShutdownBestEffort();
+            Hooks.QuitStallHooks.EndThisProcess();
         }
 
         private void LoadPreferences()
